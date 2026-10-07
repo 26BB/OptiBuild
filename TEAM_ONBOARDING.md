@@ -67,12 +67,62 @@ If your guide asks for reference paper printouts, print the top 2 papers from [`
 
 ---
 
-## 🤖 7. Antigravity 2.0 & Jira Workflow for All 4 Members
+## 🤖 7. Step-by-Step Onboarding & Antigravity 2.0 Workflow
 
-Whenever you open this repository in **Antigravity 2.0**:
-1. Your agent automatically reads `AGENTS.md` and detects your module boundaries.
-2. Tell your agent: *"I am Member X (e.g. Member 2). Check ACTIVE_SPRINT.md and tell me my current task."*
-3. Use Jira ticket IDs in your commits (`git commit -m "[OPTI-102] feat: add MCLR penalty formula"`).
-4. When your agent finishes a task, it updates `ACTIVE_SPRINT.md`.
-5. After you `git push`, your 3 teammates run `git pull`, and their Antigravity 2.0 immediately inherits everything you built!
+### 🔑 Step 1: GitHub Collaborator Access (Mandatory First Step)
+- Even if the repository is public or you can clone it, **you cannot push branches or commits without write access**.
+- Make sure Bhushan (`26BB`) has added your GitHub username under **Repository Settings → Collaborators**.
+- Check your email or GitHub notifications to **Accept the Invitation** before attempting to push.
+
+### 🐍 Step 2: Clone & Local Python Environment Setup
+Run these commands in your terminal:
+```bash
+# 1. Clone the repository
+git clone https://github.com/26BB/OptiBuild.git
+cd OptiBuild
+
+# 2. Create a virtual environment (Python 3.10+)
+python -m venv venv
+
+# 3. Activate the environment
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# Windows (CMD):
+.\venv\Scripts\activate.bat
+# Linux/macOS:
+source venv/bin/activate
+
+# 4. Install all dependencies across modules
+pip install -r requirements.txt
+```
+
+### ⚡ Step 3: Launch Antigravity 2.0 & Activate Your Agent
+1. Open the `OptiBuild` workspace folder in **Antigravity 2.0**.
+2. Antigravity will automatically detect `AGENTS.md` and load the project context into your agent.
+3. Paste your role-activation prompt into the Antigravity chat:
+   - **Divyal (Optimization Lead):**
+     > *"I am Divyal Padalkar (Member 1). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-10, and guide me on implementing the CPM DAG and DEAP GA."*
+   - **Chaitanya (Benchmark Lead):**
+     > *"I am Chaitanya (Member 2). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-11, and guide me on implementing the OR-Tools CP-SAT benchmark."*
+   - **Bhushan (Penalty Optimizer & Arch):**
+     > *"I am Bhushan Bhosale (Member 3). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-12, and let's work on the MahaRERA delay penalty engine."*
+   - **Member 4 (Full-Stack & Ingestion):**
+     > *"I am Member 4. Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-13, and let's work on the FastAPI backend and ingestion UI."*
+
+### 🌿 Step 4: Git Branching & Commit Conventions
+1. **Never commit directly to `main`:**
+   ```bash
+   git checkout -b feat/<ticket-key>-<short-description>
+   # Example: git checkout -b feat/scrum-10-cpm-dag
+   ```
+2. **Commit message format:**
+   ```bash
+   git commit -m "[<TICKET-KEY>] <type>(<scope>): <concise description>"
+   # Example: git commit -m "[SCRUM-10] feat(cpm): implement forward pass in NetworkX"
+   ```
+3. **When you finish a task:**
+   - Update your section in `ACTIVE_SPRINT.md`.
+   - Push your branch: `git push origin feat/<ticket-key>-<short-description>`.
+   - Teammates run `git pull origin main` to inherit integrated changes.
+
 

@@ -104,10 +104,21 @@ All 4 agents **MUST NEVER** violate these boundaries:
 
 ---
 
-## 📂 6. Essential Documentation & Memory Hubs
+## 🚀 6. First-Time Agent Bootstrapping & Local Environment Verification
+
+When any teammate introduces themselves to Antigravity 2.0 (e.g., *"I am Divyal"*, *"I am Chaitanya"*, etc.):
+1. **Identify Role & Boundaries:** Match their identity to the registry in Section 2 and enforce strict directory ownership. Never edit another teammate's owned directory without explicit cross-member coordination.
+2. **Environment Verification:** Verify that the Python virtual environment is activated and dependencies from `requirements.txt` are installed (`networkx`, `deap`, `ortools`, `fastapi`, etc.). If missing, offer to run `pip install -r requirements.txt`.
+3. **Branch Enforcement:** Check `git status`. Ensure the teammate is working on their dedicated feature branch (`feat/<ticket-key>-<short-description>`), never directly committing to `main`.
+4. **Sprint & Ticket Ingestion:** Read `ACTIVE_SPRINT.md` to retrieve their active ticket (e.g., `SCRUM-10`), dependencies, and expected interfaces, and immediately begin pairing on that specific task.
+
+---
+
+## 📂 7. Essential Documentation & Memory Hubs
 
 - **Project Master Memory:** [`PROJECT_MEMORY.md`](./PROJECT_MEMORY.md)
 - **Active Sprint & Team Board:** [`ACTIVE_SPRINT.md`](./ACTIVE_SPRINT.md)
 - **Team Viva Quickstart:** [`TEAM_ONBOARDING.md`](./TEAM_ONBOARDING.md)
 - **Jira Workflow Guide:** [`docs/jira-workflow-guide.md`](./docs/jira-workflow-guide.md)
 - **Mathematical Specification:** [`research/math-model/mathematical_model.md`](./research/math-model/mathematical_model.md)
+

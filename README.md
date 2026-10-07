@@ -55,23 +55,44 @@ When team members clone this repository and open it in **Antigravity 2.0**, all 
 
 ---
 
-## 🚀 Quick Setup for Teammates
+## 🚀 Quick Setup for Teammates (Day 1 Onboarding)
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/26BB/OptiBuild.git
-   cd OptiBuild
-   ```
-2. **Open in Antigravity 2.0:**
-   - Antigravity automatically detects `AGENTS.md` and `.agents/`.
-3. **Configure Environment:**
-   ```bash
-   cp .env.example .env
-   ```
-   Add your Jira API token from [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
-4. **Sync with Team:**
-   Ask Antigravity:
-   > *"Run team sync and check what tickets are in progress in ACTIVE_SPRINT.md"*
+### Step 1: Pre-requisites & GitHub Access
+1. **GitHub Collaborator Invite (Mandatory):**
+   - Even if the repo is public or cloned, **push access requires collaborator permissions**.
+   - Ensure the repository owner (`26BB`) has added your GitHub username under **Repository Settings → Collaborators**.
+   - Accept the invitation email or notification from GitHub before pushing any code.
+
+### Step 2: Clone & Python Virtual Environment
+```bash
+# 1. Clone the repository
+git clone https://github.com/26BB/OptiBuild.git
+cd OptiBuild
+
+# 2. Create and activate a Python 3.10+ virtual environment
+python -m venv venv
+
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# Windows (CMD):
+.\venv\Scripts\activate.bat
+# Linux/macOS:
+source venv/bin/activate
+
+# 3. Install all module dependencies
+pip install -r requirements.txt
+```
+
+### Step 3: Open in Antigravity 2.0 & Activate Your Agent
+1. Open the cloned `OptiBuild` folder in **Antigravity 2.0**.
+2. Antigravity automatically detects `AGENTS.md`, `ACTIVE_SPRINT.md`, and `.agents/`.
+3. In the chat, send your role-activation prompt:
+   - **Member 1 (Divyal):** `"I am Divyal Padalkar (Optimization Lead). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-10], and let's start."`
+   - **Member 2 (Chaitanya):** `"I am Chaitanya (Benchmark Lead). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-11], and let's start."`
+   - **Member 3 (Bhushan):** `"I am Bhushan Bhosale (Penalty Optimizer & Architecture). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-12], and let's start."`
+   - **Member 4:** `"I am Member 4 (Full-Stack & Ingestion Lead). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-13], and let's start."`
+
+Your Antigravity agent will verify your environment, checkout your feature branch, and guide you straight into your assigned code module.
 
 ---
 
