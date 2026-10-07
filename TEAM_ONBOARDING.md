@@ -96,18 +96,21 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### ⚡ Step 3: Launch Antigravity 2.0 & Activate Your Agent
+### ⚡ Step 3: Launch Antigravity 2.0 & Just Say Hello!
 1. Open the `OptiBuild` workspace folder in **Antigravity 2.0**.
-2. Antigravity will automatically detect `AGENTS.md` and load the project context into your agent.
-3. Paste your role-activation prompt into the Antigravity chat:
-   - **Divyal (Optimization Lead):**
-     > *"I am Divyal Padalkar (Member 1). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-10, and guide me on implementing the CPM DAG and DEAP GA."*
-   - **Chaitanya (Benchmark Lead):**
-     > *"I am Chaitanya (Member 2). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-11, and guide me on implementing the OR-Tools CP-SAT benchmark."*
-   - **Bhushan (Penalty Optimizer & Arch):**
-     > *"I am Bhushan Bhosale (Member 3). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-12, and let's work on the MahaRERA delay penalty engine."*
-   - **Member 4 (Full-Stack & Ingestion):**
-     > *"I am Member 4. Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for SCRUM-13, and let's work on the FastAPI backend and ingestion UI."*
+2. Antigravity automatically detects all team rules and context.
+3. Simply introduce yourself naturally in the chat:
+   - **Divyal:** *"Hi, I am Divyal"*
+   - **Chaitanya:** *"Hi, I am Chaitanya"*
+   - **Bhushan:** *"Hi, I am Bhushan"*
+   - **Member 4:** *"Hi, I am Member 4"* (or state your name)
+
+**What happens immediately:**
+- The agent greets you by name, confirms your owned directories, and explains your viva defense topic.
+- It verifies if your `venv` is set up and offers to run `pip install -r requirements.txt`.
+- It checks your git branch and offers to checkout your dedicated branch (e.g. `feat/scrum-10-cpm-ga`).
+- It loads your active ticket from `ACTIVE_SPRINT.md` and begins pair-programming immediately!
+
 
 ### 🌿 Step 4: Git Branching & Commit Conventions
 1. **Never commit directly to `main`:**

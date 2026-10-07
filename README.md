@@ -83,16 +83,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Step 3: Open in Antigravity 2.0 & Activate Your Agent
+### Step 3: Open in Antigravity 2.0 & Just Say Hello!
 1. Open the cloned `OptiBuild` folder in **Antigravity 2.0**.
-2. Antigravity automatically detects `AGENTS.md`, `ACTIVE_SPRINT.md`, and `.agents/`.
-3. In the chat, send your role-activation prompt:
-   - **Member 1 (Divyal):** `"I am Divyal Padalkar (Optimization Lead). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-10], and let's start."`
-   - **Member 2 (Chaitanya):** `"I am Chaitanya (Benchmark Lead). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-11], and let's start."`
-   - **Member 3 (Bhushan):** `"I am Bhushan Bhosale (Penalty Optimizer & Architecture). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-12], and let's start."`
-   - **Member 4:** `"I am Member 4 (Full-Stack & Ingestion Lead). Read ACTIVE_SPRINT.md and AGENTS.md, set up my branch for [SCRUM-13], and let's start."`
+2. Antigravity automatically detects all rules and context.
+3. Simply introduce yourself naturally in the Antigravity chat:
+   - *"Hi, I am Divyal"*
+   - *"Hi, I am Chaitanya"*
+   - *"Hi, I am Member 4"*
+   
+Antigravity automatically recognizes your name, confirms your role ownership, verifies your Python environment, sets up your feature branch, and starts pair-programming on your active sprint ticket!
 
-Your Antigravity agent will verify your environment, checkout your feature branch, and guide you straight into your assigned code module.
 
 ---
 

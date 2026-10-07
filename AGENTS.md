@@ -19,10 +19,10 @@ To keep code modular and ensure full academic viva defense balance, each team me
 
 | Member | Role | Owned Directory | Primary Responsibilities |
 |---|---|---|---|
-| **Member 1** | **Lead / Optimization** | `app/engine/cpm/`, `app/engine/ga/` | CPM DAG scheduling, NetworkX forward/backward passes, DEAP Genetic Algorithm chromosome encoding, fitness functions, resource constraint handling. |
-| **Member 2** | **Benchmark & Math** | `app/engine/cpsat/`, `app/engine/penalty/`, `research/math-model/` | Google OR-Tools CP-SAT exact solver benchmarking, optimality gap calculations, MahaRERA Section 18 penalty engine (SBI MCLR + 2%). |
-| **Member 3** | **Full-Stack & UX** | `app/backend/`, `app/frontend/`, `jira-feedback/` | FastAPI REST APIs, PostgreSQL/SQLAlchemy schemas, Next.js UI, Gantt chart visualization, in-app user feedback Jira webhook. |
-| **Member 4** | **Data & Computer Vision** | `app/cv/`, `app/ingestion/` | `pdfplumber` MahaRERA form pre-filling (review-and-confirm), MobileNetV2 binary site progress classifier (Structural vs. Finishing), material/expense logger. |
+| **Divyal Padalkar (Member 1)** | **Lead / Optimization** | `app/engine/cpm/`, `app/engine/ga/` | CPM DAG scheduling, NetworkX forward/backward passes, DEAP Genetic Algorithm chromosome encoding, fitness functions, resource constraint handling. |
+| **Chaitanya (Member 2)** | **Benchmark & Math** | `app/engine/cpsat/`, `app/engine/penalty/`, `research/math-model/` | Google OR-Tools CP-SAT exact solver benchmarking, optimality gap calculations, MahaRERA Section 18 penalty engine (SBI MCLR + 2%). |
+| **Bhushan Bhosale (Member 3)** | **Research & Full-Stack** | `app/backend/`, `app/engine/penalty/`, `docs/` | MahaRERA penalty engine architecture, system specs, mathematical modeling, and research papers. |
+| **Member 4 (Teammate 4)** | **Full-Stack & CV** | `app/backend/`, `app/frontend/`, `app/cv/`, `app/ingestion/` | FastAPI REST APIs, Next.js UI, `pdfplumber` form pre-filling, MobileNetV2 site progress classifier. |
 
 ---
 
@@ -104,13 +104,13 @@ All 4 agents **MUST NEVER** violate these boundaries:
 
 ---
 
-## 🚀 6. First-Time Agent Bootstrapping & Local Environment Verification
-
-When any teammate introduces themselves to Antigravity 2.0 (e.g., *"I am Divyal"*, *"I am Chaitanya"*, etc.):
-1. **Identify Role & Boundaries:** Match their identity to the registry in Section 2 and enforce strict directory ownership. Never edit another teammate's owned directory without explicit cross-member coordination.
-2. **Environment Verification:** Verify that the Python virtual environment is activated and dependencies from `requirements.txt` are installed (`networkx`, `deap`, `ortools`, `fastapi`, etc.). If missing, offer to run `pip install -r requirements.txt`.
-3. **Branch Enforcement:** Check `git status`. Ensure the teammate is working on their dedicated feature branch (`feat/<ticket-key>-<short-description>`), never directly committing to `main`.
-4. **Sprint & Ticket Ingestion:** Read `ACTIVE_SPRINT.md` to retrieve their active ticket (e.g., `SCRUM-10`), dependencies, and expected interfaces, and immediately begin pairing on that specific task.
+## 🚀 6. Zero-Friction Teammate Introduction & Instant Bootstrap
+When any teammate introduces themselves naturally (e.g., *"Hi, I am Divyal"*, *"Chaitanya here"*, *"Hey, I'm Member 4"*):
+1. **Instant Recognition:** Immediately welcome them by name, state their module ownership, their viva topic, and their active Jira ticket from `ACTIVE_SPRINT.md`.
+2. **Automated Environment Verification:** Check if a Python virtual environment is set up. If not, offer or run `python -m venv venv` and `pip install -r requirements.txt`.
+3. **Branch Protection:** Check current git branch (`git branch --show-current`). If on `main`, offer to switch to `feat/<ticket-key>-<short-description>`.
+4. **Collaborator Verification:** Remind them to ensure Bhushan added their GitHub username as a Collaborator to prevent push permission errors.
+5. **Start Pair-Programming:** Immediately present the first task or file they should start building, so they write code on minute one without reading lengthy manuals.
 
 ---
 
