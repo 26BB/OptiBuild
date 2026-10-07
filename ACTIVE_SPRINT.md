@@ -12,7 +12,7 @@
 
 ## 👥 Teammate Active Tasks & File Ownership
 
-### 1. Divyal Padalkar (Optimization Lead)
+### 1. Role 1: Optimization Lead (Divyal / Flexible)
 - **Active Jira Ticket:** `[SCRUM-10]` `[HERO-ENGINE] Implement CPM DAG (NetworkX) & Resource-Constrained GA (DEAP)`
 - **Status:** ⏳ In Progress
 - **Files Owned:**
@@ -23,7 +23,7 @@
 
 ---
 
-### 2. Chaitanya (Benchmark Lead)
+### 2. Role 2: Benchmark Lead (Chaitanya / Flexible)
 - **Active Jira Ticket:** `[SCRUM-11]` `[BENCHMARK] Implement Google OR-Tools CP-SAT Solver Benchmarking`
 - **Status:** ⏳ Ready / In Progress
 - **Files Owned:**
@@ -33,7 +33,7 @@
 
 ---
 
-### 3. Bhushan Bhosale (Research & Financial Optimizer)
+### 3. Role 3: Research & Financial Optimizer (Bhushan Bhosale)
 - **Active Jira Ticket:** `[SCRUM-12]` `[OPTIMIZER] Implement MahaRERA Section 18 Delay-Penalty vs Crash Cost Engine`
 - **Status:** ⏳ Ready / In Progress
 - **Files Owned:**
@@ -44,7 +44,7 @@
 
 ---
 
-### 4. Teammate 4 (Full-Stack & Ingestion Lead)
+### 4. Role 4: Full-Stack & Ingestion Lead (Aniket / Flexible)
 - **Active Jira Ticket:** `[SCRUM-13]` `[FULLSTACK-UI] Build FastAPI Backend & Next.js Parameter Ingestion Dashboard`
 - **Status:** ⏳ Ready
 - **Files Owned:**

@@ -23,14 +23,14 @@ Examiners love trying to trip up groups with scope questions. Keep these locked:
 
 ## 🎯 3. Group Division of Work (4-Member SPPU Viva Split)
 
-To ensure the guide and external examiners see that everyone contributed equally:
+The 4 modules below are balanced so that each teammate gets an independent, heavyweight viva defense topic. You can decide and pick which module suits you best:
 
-| Team Member | Module Ownership | Viva Defense Topic | Jira Ticket |
-|---|---|---|:---:|
-| **Divyal Padalkar (Lead / Optimization)** | **CPM + Genetic Algorithm (DEAP)** | How NetworkX DAGs compute critical path, chromosome encoding, and GA fitness function. | `SCRUM-10` |
-| **Chaitanya (Benchmark & Exact Solvers)** | **CP-SAT Solver & OR-Tools** | Google OR-Tools CP-SAT benchmarking, optimality gap, and interval constraints. | `SCRUM-11` |
-| **Bhushan Bhosale (Research & Full-Stack)** | **Penalty Optimizer & Architecture** | MahaRERA interest formula ($\text{MCLR} + 2\%$), Tradeoff advisory, and System architecture. | `SCRUM-12`, `SCRUM-7` |
-| **Teammate 4 (Full-Stack & CV UI)** | **FastAPI + Next.js Web App** | Database schema, REST APIs, builder dashboard, and Gantt chart visualization. | `SCRUM-13` |
+| Role / Module | Module Ownership | Viva Defense Topic | Jira Ticket | Suggested / Open |
+|---|---|---|:---:|:---:|
+| **Role 1: Optimization Lead** | **CPM + Genetic Algorithm (DEAP)** | NetworkX DAG critical path, chromosome encoding, and GA fitness function. | `SCRUM-10` | *Divyal / Flexible* |
+| **Role 2: Benchmark Lead** | **CP-SAT Solver & OR-Tools** | Google OR-Tools CP-SAT benchmarking, optimality gap, and interval constraints. | `SCRUM-11` | *Chaitanya / Flexible* |
+| **Role 3: Financial Optimizer** | **Penalty Optimizer & Architecture** | MahaRERA interest formula ($\text{MCLR} + 2\%$), Tradeoff advisory, and System architecture. | `SCRUM-12` | *Bhushan Bhosale* |
+| **Role 4: Full-Stack & CV UI** | **FastAPI + Next.js + MobileNetV2** | Database schema, REST APIs, builder dashboard, Gantt chart & MobileNetV2. | `SCRUM-13` | *Aniket / Flexible* |
 
 ---
 
@@ -103,13 +103,15 @@ pip install -r requirements.txt
    - **Divyal:** *"Hi, I am Divyal"*
    - **Chaitanya:** *"Hi, I am Chaitanya"*
    - **Bhushan:** *"Hi, I am Bhushan"*
-   - **Member 4:** *"Hi, I am Member 4"* (or state your name)
+   - **Aniket:** *"Hi, I am Aniket"*
 
 **What happens immediately:**
-- The agent greets you by name, confirms your owned directories, and explains your viva defense topic.
+- The agent greets you by name and presents the 4 modules so you can choose which one you want to lead.
+- Once you choose (or if you already said your preference), it locks your module boundaries and viva topic.
 - It verifies if your `venv` is set up and offers to run `pip install -r requirements.txt`.
-- It checks your git branch and offers to checkout your dedicated branch (e.g. `feat/scrum-10-cpm-ga`).
+- It checks your git branch and offers to checkout your dedicated feature branch (e.g. `feat/scrum-10-cpm-ga`).
 - It loads your active ticket from `ACTIVE_SPRINT.md` and begins pair-programming immediately!
+
 
 
 ### 🌿 Step 4: Git Branching & Commit Conventions

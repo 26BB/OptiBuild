@@ -17,10 +17,10 @@ To guarantee academic viva defense balance and modular software architecture:
 
 | Member | Module Ownership | Core Tech & Directories | Viva Defense Topic |
 |---|---|---|---|
-| **Member 1 (Lead)** | **CPM + Genetic Algorithm** | `networkx`, `deap` (`app/engine/cpm/`, `app/engine/ga/`) | DAG topological traversal, forward/backward passes, GA chromosome encoding & fitness convergence. |
-| **Member 2** | **CP-SAT Solver & Penalty Engine** | `ortools`, Set Theory (`app/engine/cpsat/`, `app/engine/penalty/`) | Google OR-Tools exact solver benchmark, optimality gap, MahaRERA Section 18 penalty formula ($\text{MCLR} + 2\%$). |
-| **Member 3** | **Full-Stack & UX** | FastAPI, Next.js, Jira REST (`app/backend/`, `app/frontend/`, `jira-feedback/`) | REST API schemas, database migrations, interactive Gantt chart, in-app Jira user feedback webhook. |
-| **Member 4** | **Data & Computer Vision** | `pdfplumber`, MobileNetV2 (`app/ingestion/`, `app/cv/`) | MahaRERA PDF extraction with review-and-confirm UX, binary stage classifier (Structural vs Finishing). |
+| **Divyal Padalkar (Member 1)** | **CPM + Genetic Algorithm** | `networkx`, `deap` (`app/engine/cpm/`, `app/engine/ga/`) | DAG topological traversal, forward/backward passes, GA chromosome encoding & fitness convergence. |
+| **Chaitanya (Member 2)** | **CP-SAT Solver & Penalty Engine** | `ortools`, Set Theory (`app/engine/cpsat/`, `app/engine/penalty/`) | Google OR-Tools exact solver benchmark, optimality gap, MahaRERA Section 18 penalty formula ($\text{MCLR} + 2\%$). |
+| **Bhushan Bhosale (Member 3)** | **Full-Stack & UX** | FastAPI, Next.js, Jira REST (`app/backend/`, `app/frontend/`, `jira-feedback/`) | REST API schemas, database migrations, interactive Gantt chart, in-app Jira user feedback webhook. |
+| **Aniket (Member 4)** | **Data & Computer Vision** | `pdfplumber`, MobileNetV2 (`app/ingestion/`, `app/cv/`) | MahaRERA PDF extraction with review-and-confirm UX, binary stage classifier (Structural vs Finishing). |
 
 ---
 
@@ -89,9 +89,9 @@ pip install -r requirements.txt
 3. Simply introduce yourself naturally in the Antigravity chat:
    - *"Hi, I am Divyal"*
    - *"Hi, I am Chaitanya"*
-   - *"Hi, I am Member 4"*
+   - *"Hi, I am Aniket"*
    
-Antigravity automatically recognizes your name, confirms your role ownership, verifies your Python environment, sets up your feature branch, and starts pair-programming on your active sprint ticket!
+Antigravity automatically recognizes your name, presents the 4 modules so you can pick your preferred role, verifies your Python environment, sets up your feature branch, and starts pair-programming on your module!
 
 
 ---

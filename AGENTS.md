@@ -13,16 +13,16 @@
 
 ---
 
-## 👥 2. Team Member Registry & Module Ownership (4-Person Split)
+## 👥 2. Team Member Registry & Modular Roles (Flexible Viva Split)
 
-To keep code modular and ensure full academic viva defense balance, each team member and their Antigravity agent owns a dedicated module:
+To keep code modular and ensure full academic viva defense balance, OptiBuild is split into 4 distinct roles for the 4 team members (Divyal, Chaitanya, Bhushan, and Aniket). The team can flexibly decide who leads which module:
 
-| Member | Role | Owned Directory | Primary Responsibilities |
-|---|---|---|---|
-| **Divyal Padalkar (Member 1)** | **Lead / Optimization** | `app/engine/cpm/`, `app/engine/ga/` | CPM DAG scheduling, NetworkX forward/backward passes, DEAP Genetic Algorithm chromosome encoding, fitness functions, resource constraint handling. |
-| **Chaitanya (Member 2)** | **Benchmark & Math** | `app/engine/cpsat/`, `app/engine/penalty/`, `research/math-model/` | Google OR-Tools CP-SAT exact solver benchmarking, optimality gap calculations, MahaRERA Section 18 penalty engine (SBI MCLR + 2%). |
-| **Bhushan Bhosale (Member 3)** | **Research & Full-Stack** | `app/backend/`, `app/engine/penalty/`, `docs/` | MahaRERA penalty engine architecture, system specs, mathematical modeling, and research papers. |
-| **Member 4 (Teammate 4)** | **Full-Stack & CV** | `app/backend/`, `app/frontend/`, `app/cv/`, `app/ingestion/` | FastAPI REST APIs, Next.js UI, `pdfplumber` form pre-filling, MobileNetV2 site progress classifier. |
+| Module Role | Focus Area | Owned Directory | Primary Responsibilities & Viva Defense | Suggested Assignment |
+|---|---|---|---|:---:|
+| **Role 1: Optimization Lead** | **CPM + Genetic Algorithm** | `app/engine/cpm/`, `app/engine/ga/` | CPM DAG scheduling, NetworkX forward/backward passes, DEAP Genetic Algorithm chromosome encoding, fitness functions, resource constraint handling. | *Divyal / Open* |
+| **Role 2: Benchmark Lead** | **OR-Tools CP-SAT & Solvers** | `app/engine/cpsat/`, `app/engine/benchmark/` | Google OR-Tools CP-SAT exact solver benchmarking, optimality gap calculations, combinatorial interval constraints. | *Chaitanya / Open* |
+| **Role 3: Financial Optimizer** | **MahaRERA & Architecture** | `app/engine/penalty/`, `research/math-model/`, `docs/` | MahaRERA Section 18 penalty engine (SBI MCLR + 2%), activity crash slope tradeoff advisory, architecture & papers. | *Bhushan Bhosale* |
+| **Role 4: Full-Stack & CV Lead** | **FastAPI, Next.js & MobileNetV2** | `app/backend/`, `app/frontend/`, `app/cv/`, `app/ingestion/` | FastAPI REST APIs, Next.js dashboard & Gantt chart, `pdfplumber` form pre-filling, MobileNetV2 binary classifier. | *Aniket / Open* |
 
 ---
 
@@ -56,17 +56,17 @@ Because each team member runs Antigravity 2.0 locally, context is synchronized a
 
 ```mermaid
 flowchart TD
-    subgraph Teammate 1 (Optimization)
-        AG1[Antigravity 2.0 (Member 1)]
+    subgraph Divyal (Optimization)
+        AG1[Antigravity 2.0 (Divyal)]
     end
-    subgraph Teammate 2 (Benchmark & Math)
-        AG2[Antigravity 2.0 (Member 2)]
+    subgraph Chaitanya (Benchmark & Math)
+        AG2[Antigravity 2.0 (Chaitanya)]
     end
-    subgraph Teammate 3 (Full-Stack & UX)
-        AG3[Antigravity 2.0 (Member 3)]
+    subgraph Bhushan (Research & Full-Stack)
+        AG3[Antigravity 2.0 (Bhushan)]
     end
-    subgraph Teammate 4 (Data & CV)
-        AG4[Antigravity 2.0 (Member 4)]
+    subgraph Aniket (Data & CV)
+        AG4[Antigravity 2.0 (Aniket)]
     end
 
     JIRA[(Atlassian Jira Cloud<br/>Sprints, Epics, Tasks)]
@@ -104,13 +104,13 @@ All 4 agents **MUST NEVER** violate these boundaries:
 
 ---
 
-## 🚀 6. Zero-Friction Teammate Introduction & Instant Bootstrap
-When any teammate introduces themselves naturally (e.g., *"Hi, I am Divyal"*, *"Chaitanya here"*, *"Hey, I'm Member 4"*):
-1. **Instant Recognition:** Immediately welcome them by name, state their module ownership, their viva topic, and their active Jira ticket from `ACTIVE_SPRINT.md`.
+## 🚀 6. Zero-Friction Teammate Introduction & Interactive Role Selection
+When any teammate introduces themselves naturally (e.g., *"Hi, I am Divyal"*, *"Chaitanya here"*, *"Hey, I'm Aniket"*):
+1. **Interactive Role Selection:** If they haven't picked a role yet, present the 4 modules with their viva defense value and let them choose which one they want to lead.
 2. **Automated Environment Verification:** Check if a Python virtual environment is set up. If not, offer or run `python -m venv venv` and `pip install -r requirements.txt`.
-3. **Branch Protection:** Check current git branch (`git branch --show-current`). If on `main`, offer to switch to `feat/<ticket-key>-<short-description>`.
+3. **Branch Protection:** Check current git branch (`git branch --show-current`). If on `main`, offer to switch to their dedicated feature branch (e.g., `feat/<module-name>`).
 4. **Collaborator Verification:** Remind them to ensure Bhushan added their GitHub username as a Collaborator to prevent push permission errors.
-5. **Start Pair-Programming:** Immediately present the first task or file they should start building, so they write code on minute one without reading lengthy manuals.
+5. **Start Pair-Programming:** Immediately present the first task or file they should start building for their chosen role, so they write code on minute one without reading lengthy manuals.
 
 ---
 
