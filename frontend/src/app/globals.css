@@ -1,0 +1,139 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Engineering Blueprint Fonts */
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Specific Engineering Blueprint Colors */
+  --color-safety-orange: #e8590c;
+  --color-blueprint-ink: var(--foreground);
+  --color-blueprint-paper: var(--background);
+  --color-blueprint-border: var(--border);
+  --color-blueprint-grid: var(--grid-line);
+  --color-status-success: #2b8a3e;
+  --color-status-danger: #c92a2a;
+  --color-status-warning: #e8590c;
+
+  /* Font Families */
+  --font-heading: "Space Grotesk Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "IBM Plex Sans Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", Menlo, Consolas, Monaco, monospace;
+
+  /* Strict Site Office Rules: Radius 4px max */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+}
+
+:root {
+  /* Blueprint Paper (Light Mode) */
+  --background: #f4f1ea;
+  --foreground: #1c2024;
+  --card: #ffffff;
+  --card-foreground: #1c2024;
+  --popover: #ffffff;
+  --popover-foreground: #1c2024;
+
+  /* Safety Orange Accent */
+  --primary: #e8590c;
+  --primary-foreground: #ffffff;
+  --secondary: #eae4d5;
+  --secondary-foreground: #1c2024;
+  --muted: #ebe5d7;
+  --muted-foreground: #5c6470;
+  --accent: #eae4d5;
+  --accent-foreground: #e8590c;
+  --destructive: #c92a2a;
+  --destructive-foreground: #ffffff;
+
+  /* Strict Borders & Blueprint Grids */
+  --border: #d4cbba;
+  --input: #d4cbba;
+  --ring: #e8590c;
+  --grid-line: rgba(28, 32, 36, 0.05);
+
+  --radius: 4px;
+}
+
+.dark {
+  /* Site Office Terminal (Dark Mode) */
+  --background: #14181f;
+  --foreground: #e8ecef;
+  --card: #1a2029;
+  --card-foreground: #e8ecef;
+  --popover: #1a2029;
+  --popover-foreground: #e8ecef;
+
+  /* Safety Orange in Dark */
+  --primary: #e8590c;
+  --primary-foreground: #ffffff;
+  --secondary: #222935;
+  --secondary-foreground: #e8ecef;
+  --muted: #222935;
+  --muted-foreground: #8a94a6;
+  --accent: #222935;
+  --accent-foreground: #ff922b;
+  --destructive: #fa5252;
+  --destructive-foreground: #ffffff;
+
+  --border: #283243;
+  --input: #283243;
+  --ring: #e8590c;
+  --grid-line: rgba(232, 236, 239, 0.04);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    letter-spacing: -0.011em;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+  code, kbd, samp, pre, .font-mono, [data-mono="true"] {
+    font-family: var(--font-mono) !important;
+  }
+}
+
+/* Subtle Engineering Blueprint Background Grid */
+.blueprint-grid-bg {
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+}
