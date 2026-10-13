@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { useDropzone } from "react-dropzone"
+import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { formatINR } from "@/lib/utils"
 import {
@@ -77,7 +78,7 @@ export default function ReraReviewPage() {
       const body = new FormData()
       body.append("file", file)
 
-      const res = await fetch("http://localhost:8000/api/v1/rera/upload-parse", {
+      const res = await fetch(getApiUrl("/api/v1/rera/upload-parse"), {
         method: "POST",
         body,
       }).catch(() => null)
@@ -112,7 +113,7 @@ export default function ReraReviewPage() {
   const handleConfirm = async () => {
     setIsParsing(true)
     try {
-      await fetch("http://localhost:8000/api/v1/rera/confirm", {
+      await fetch(getApiUrl("/api/v1/rera/confirm"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

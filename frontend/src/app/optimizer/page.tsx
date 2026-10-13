@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { formatINR } from "@/lib/utils"
 import {
@@ -99,7 +100,7 @@ export default function OptimizerPage() {
     const investmentInr = investmentCrores * 10000000
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/optimizer/evaluate", {
+      const res = await fetch(getApiUrl("/api/v1/optimizer/evaluate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

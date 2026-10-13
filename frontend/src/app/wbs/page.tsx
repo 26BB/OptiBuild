@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { formatINR } from "@/lib/utils"
 import {
@@ -237,7 +238,7 @@ export default function WbsPage() {
   const handleGenerate = async () => {
     setIsCalculating(true)
     try {
-      const res = await fetch("http://localhost:8000/api/v1/wbs/generate", {
+      const res = await fetch(getApiUrl("/api/v1/wbs/generate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

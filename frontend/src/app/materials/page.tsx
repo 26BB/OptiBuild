@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { useDropzone } from "react-dropzone"
+import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { formatINR } from "@/lib/utils"
 import {
@@ -158,7 +159,7 @@ export default function MaterialsPage() {
       const body = new FormData()
       body.append("file", file)
 
-      const res = await fetch("http://localhost:8000/api/v1/materials/classify-photo", {
+      const res = await fetch(getApiUrl("/api/v1/materials/classify-photo"), {
         method: "POST",
         body,
       }).catch(() => null)

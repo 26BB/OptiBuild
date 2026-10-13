@@ -13,6 +13,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts"
+import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { formatINR } from "@/lib/utils"
 import {
@@ -176,7 +177,7 @@ export default function DashboardPage() {
   const [recalibrationNotice, setRecalibrationNotice] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/v1/dashboard/budget-vs-actual")
+    fetch(getApiUrl("/api/v1/dashboard/budget-vs-actual"))
       .then((res) => (res.ok ? res.json() : null))
       .then((d) => {
         if (d) setData(d)
@@ -187,7 +188,7 @@ export default function DashboardPage() {
   const handleRecalibrate = async () => {
     setIsRecalibrating(true)
     try {
-      const res = await fetch("http://localhost:8000/api/v1/dashboard/recalibrate-crash-costs", {
+      const res = await fetch(getApiUrl("/api/v1/dashboard/recalibrate-crash-costs"), {
         method: "POST",
       }).catch(() => null)
 

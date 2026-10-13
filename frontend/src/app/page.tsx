@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { GanttSchedule, ScheduleTask } from "@/components/schedule/GanttSchedule"
 import { RecoverySidePanel } from "@/components/optimizer/RecoverySidePanel"
@@ -132,7 +133,7 @@ export default function HomePage() {
     setIsOptimizing(true)
     try {
       // Simulate/call backend API
-      const res = await fetch("http://localhost:8000/api/v1/schedule/optimize", {
+      const res = await fetch(getApiUrl("/api/v1/schedule/optimize"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

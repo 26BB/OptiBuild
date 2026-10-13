@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import {
   Cpu,
@@ -73,7 +74,7 @@ export default function BenchmarkPage() {
   const handleRun = async () => {
     setIsRunning(true)
     try {
-      const res = await fetch("http://localhost:8000/api/v1/benchmark/run", {
+      const res = await fetch(getApiUrl("/api/v1/benchmark/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
