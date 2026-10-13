@@ -5,6 +5,7 @@ from backend.app.api.v1.schedule import router as schedule_router
 from backend.app.api.v1.benchmark import router as benchmark_router
 from backend.app.api.v1.optimizer import router as optimizer_router
 from backend.app.api.v1.wbs import router as wbs_router
+from backend.app.api.v1.rera_parser import router as rera_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -28,6 +29,7 @@ app.include_router(schedule_router, prefix=settings.API_V1_STR)
 app.include_router(benchmark_router, prefix=settings.API_V1_STR)
 app.include_router(optimizer_router, prefix=settings.API_V1_STR)
 app.include_router(wbs_router, prefix=settings.API_V1_STR)
+app.include_router(rera_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health"])
