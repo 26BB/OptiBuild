@@ -5,10 +5,10 @@ import { CheckCircle2, AlertOctagon, TrendingUp, ShieldCheck } from "lucide-reac
 import { formatINR } from "@/lib/utils"
 
 interface RecoveryComparisonProps {
-  delayDays: number
-  penaltyCost: number
-  crashCost: number
-  crashedDaysRecovered: number
+  delayDays?: number
+  penaltyCost?: number
+  crashCost?: number
+  crashedDaysRecovered?: number
   interestRateAnnual?: number
 }
 

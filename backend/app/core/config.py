@@ -1,12 +1,31 @@
+import os
+from typing import List
+
+
 class Settings:
     PROJECT_NAME: str = "OptiBuild Construction Scheduling & Resource Optimization Engine"
     API_V1_STR: str = "/api/v1"
-    CORS_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ]
+
+    # JWT Authentication
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "optibuild-super-secret-jwt-key-2026-production")
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
+
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ]
+        frontend_url = os.getenv("FRONTEND_URL")
+        if frontend_url:
+            for url in frontend_url.split(","):
+                cleaned = url.strip().rstrip("/")
+                if cleaned and cleaned not in origins:
+                    origins.append(cleaned)
+        return origins
 
 
 settings = Settings()

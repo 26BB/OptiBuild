@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import { Sidebar } from "@/components/layout/Sidebar"
+import { AuthProvider } from "@/context/AuthContext"
+import { ClientLayoutWrapper } from "@/components/layout/ClientLayoutWrapper"
 
 export const metadata: Metadata = {
   title: "OptiBuild — Penalty-Aware Construction Scheduling & Resource Optimization",
@@ -15,10 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-row bg-background text-foreground blueprint-grid-bg">
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-          {children}
-        </div>
+        <AuthProvider>
+          <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
+        </AuthProvider>
       </body>
     </html>
   )

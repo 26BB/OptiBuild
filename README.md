@@ -114,7 +114,32 @@ OptiBuild_Main/
 
 ---
 
-## ⚡ 5. Quick Start & Local Execution
+## 🔑 5. Role-Based Access Control (RBAC) & Demo Logins
+
+OptiBuild operates on an enterprise Role-Based Access Control model backed by bcrypt password hashing and JWT access tokens containing role claims. 
+
+### Seeded Demo Accounts (1-Click Login Available)
+
+Run the seed script to initialize the 7 demo accounts and the base organization (`OptiBuild Infrastructure Corp`):
+```bash
+backend/.venv/Scripts/python.exe -m backend.app.db.seed
+```
+> [!NOTE]
+> The seed script creates **ONLY** these 7 users and 1 empty organization. **No fake projects or mock MahaRERA certificates are created.** All pages query real database tables and render empty states with clear action pathways until a user uploads and confirms real project documents.
+
+| Role | Demo Email | Password | Default Home Route | Permitted Capabilities & Workflow |
+|---|---|---|---|---|
+| **Administrator** | `admin@optibuild.io` | `Admin@123` | `/admin` | Manage organization users, invite staff, assign team members to projects, access all system views. |
+| **Project Manager** | `pm@optibuild.io` | `PM@123` | `/rera-review` | Upload MahaRERA PDF, review editable pre-fill draft, confirm project creation, generate parametric WBS, run CPM + GA scheduler, evaluate Section 18 crashing optimizer. |
+| **Site Engineer** | `site@optibuild.io` | `Site@123` | `/` | Inspect project Gantt timeline, update real-time activity completion percentage and status, upload site inspection photos for AI stage classification. |
+| **Store Keeper** | `store@optibuild.io` | `Store@123` | `/materials` | Log material deliveries (Steel, Cement, Concrete), record actual invoice costs, attach unparsed bill photos as documentary evidence. |
+| **Architect** | `architect@optibuild.io` | `Architect@123` | `/drawings` | Attach architectural, structural, and MEP CAD/PDF drawings for site visual reference (**stored for human viewing only; never parsed**). |
+| **Accountant** | `accountant@optibuild.io` | `Accountant@123` | `/dashboard` | Audit project financial health: Budget vs. Actual (EV S-Curve), cumulative material expenditure breakdown, actual vs planned cost variance. |
+| **Owner / Promoter** | `owner@optibuild.io` | `Owner@123` | `/dashboard` | Read-only executive dashboard: milestone completion, statutory delay risk (days), and MahaRERA Section 18 penalty liability exposure. |
+
+---
+
+## ⚡ 6. Quick Start & Local Execution
 
 ### Option A: Local Development (Recommended for Coding)
 

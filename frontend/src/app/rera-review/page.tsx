@@ -2,8 +2,12 @@
 
 import React, { useState } from "react"
 import { useDropzone } from "react-dropzone"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
+import { EmptyState } from "@/components/ui/EmptyState"
+import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
   FileCheck2,
@@ -18,6 +22,8 @@ import {
   ShieldAlert,
   ArrowRight,
   RotateCcw,
+  PlusCircle,
+  Loader2,
 } from "lucide-react"
 
 interface ReraDraftData {
@@ -31,48 +37,61 @@ interface ReraDraftData {
   number_of_floors: number
   number_of_basements: number
   total_project_cost: number
+  raw_pdf_url?: string
   confidence_scores: Record<string, string>
 }
 
-const DEFAULT_SAMPLE_DRAFT: ReraDraftData = {
-  project_name: "Emerald Heights Phase 1",
-  rera_registration_no: "P52100018921",
-  promoter_name: "Solitaire Infra Projects Private Limited",
-  proposed_completion_date: "31/12/2027",
-  plot_area_sqft: 48437.55,
-  built_up_area_sqft: 134548.75,
-  carpet_area_sqft: 91493.15,
-  number_of_floors: 15,
-  number_of_basements: 1,
-  total_project_cost: 425000000, // ₹42.50 Cr
-  confidence_scores: {
-    project_name: "HIGH",
-    rera_registration_no: "HIGH",
-    promoter_name: "HIGH",
-    proposed_completion_date: "HIGH",
-    plot_area_sqft: "HIGH",
-    built_up_area_sqft: "HIGH",
-    carpet_area_sqft: "HIGH",
-    number_of_floors: "HIGH",
-    total_project_cost: "HIGH",
-  },
+const EMPTY_DRAFT: ReraDraftData = {
+  project_name: "",
+  rera_registration_no: "",
+  promoter_name: "",
+  proposed_completion_date: "",
+  plot_area_sqft: 0,
+  built_up_area_sqft: 0,
+  carpet_area_sqft: 0,
+  number_of_floors: 1,
+  number_of_basements: 0,
+  total_project_cost: 0,
+  confidence_scores: {},
 }
 
 export default function ReraReviewPage() {
-  const [formData, setFormData] = useState<ReraDraftData>(DEFAULT_SAMPLE_DRAFT)
-  const [fileName, setFileName] = useState<string>("MahaRERA_Certificate_P52100018921.pdf")
+  const { user, token, hasPermission, refreshProjects, setActiveProjectId } = useAuth()
+  const router = useRouter()
+
+  const [formData, setFormData] = useState<ReraDraftData | null>(null)
+  const [fileName, setFileName] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
-  const [isConfirmed, setIsConfirmed] = useState(false)
-  const [userNotes, setUserNotes] = useState(
-    "Verified against MahaRERA Annexure B sanctioned layout drawing dated 12-Oct-2026."
-  )
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [confirmedProject, setConfirmedProject] = useState<{ id: string; name: string } | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [userNotes, setUserNotes] = useState("")
+
+  // Permission check
+  if (!hasPermission(["project_manager", "admin"])) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <TopBar projectName="MahaRERA Project Registration" />
+        <main className="p-6">
+          <EmptyState
+            isPermissionDenied={true}
+            title="Project Manager Access Required"
+            description="Only Project Managers and Administrators are authorized to parse MahaRERA certificates and register projects."
+            actionLabel="Return to Schedule"
+            actionHref="/"
+          />
+        </main>
+      </div>
+    )
+  }
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return
     const file = acceptedFiles[0]
     setFileName(file.name)
     setIsParsing(true)
-    setIsConfirmed(false)
+    setErrorMessage(null)
+    setConfirmedProject(null)
 
     try {
       const body = new FormData()
@@ -80,27 +99,34 @@ export default function ReraReviewPage() {
 
       const res = await fetch(getApiUrl("/api/v1/rera/upload-parse"), {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body,
-      }).catch(() => null)
+      })
 
-      if (res && res.ok) {
-        const draft = await res.json()
-        setFormData({
-          project_name: draft.project_name || "Extracted MahaRERA Project",
-          rera_registration_no: draft.rera_registration_no || "P5XXXXXXXXXX",
-          promoter_name: draft.promoter_name || "Developer / Promoter",
-          proposed_completion_date: draft.proposed_completion_date || "31/12/2027",
-          plot_area_sqft: draft.plot_area_sqft || 45000,
-          built_up_area_sqft: draft.built_up_area_sqft || 120000,
-          carpet_area_sqft: draft.carpet_area_sqft || 80000,
-          number_of_floors: draft.number_of_floors || 14,
-          number_of_basements: draft.number_of_basements || 1,
-          total_project_cost: draft.total_project_cost || 350000000,
-          confidence_scores: draft.confidence_scores || {},
-        })
+      if (!res.ok) {
+        throw new Error("Failed to parse uploaded PDF. Opening manual entry form.")
       }
+
+      const draft = await res.json()
+      setFormData({
+        project_name: draft.project_name || "",
+        rera_registration_no: draft.rera_registration_no || "",
+        promoter_name: draft.promoter_name || "",
+        proposed_completion_date: draft.proposed_completion_date || "",
+        plot_area_sqft: draft.plot_area_sqft || 0,
+        built_up_area_sqft: draft.built_up_area_sqft || 0,
+        carpet_area_sqft: draft.carpet_area_sqft || 0,
+        number_of_floors: draft.number_of_floors || 1,
+        number_of_basements: draft.number_of_basements || 0,
+        total_project_cost: draft.total_project_cost || 0,
+        raw_pdf_url: draft.raw_pdf_url,
+        confidence_scores: draft.confidence_scores || {},
+      })
+    } catch (err: any) {
+      setErrorMessage(err.message || "Parsing failed. You can enter details manually below.")
+      setFormData(EMPTY_DRAFT)
     } finally {
-      setTimeout(() => setIsParsing(false), 500)
+      setIsParsing(false)
     }
   }
 
@@ -110,323 +136,384 @@ export default function ReraReviewPage() {
     maxFiles: 1,
   })
 
+  const handleStartManualEntry = () => {
+    setFileName("manual_entry.pdf")
+    setFormData(EMPTY_DRAFT)
+    setErrorMessage(null)
+    setConfirmedProject(null)
+  }
+
   const handleConfirm = async () => {
-    setIsParsing(true)
+    if (!formData) return
+    if (!formData.project_name || !formData.rera_registration_no) {
+      setErrorMessage("Project Name and MahaRERA Registration Number are required.")
+      return
+    }
+
+    setIsConfirming(true)
+    setErrorMessage(null)
+
     try {
-      await fetch(getApiUrl("/api/v1/rera/confirm"), {
+      const res = await fetch(getApiUrl("/api/v1/rera/confirm"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           ...formData,
           user_notes: userNotes,
         }),
-      }).catch(() => null)
-      setIsConfirmed(true)
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.detail || "Failed to confirm and create project.")
+      }
+
+      const data = await res.json()
+      setConfirmedProject({ id: data.project_id, name: data.project_name })
+      setActiveProjectId(data.project_id)
+      await refreshProjects()
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to confirm project.")
     } finally {
-      setIsParsing(false)
+      setIsConfirming(false)
     }
+  }
+
+  const renderConfidenceBadge = (fieldKey: string) => {
+    if (!formData) return null
+    const score = formData.confidence_scores[fieldKey] || "MANUAL"
+    if (score === "HIGH") {
+      return (
+        <span className="text-[10px] font-mono px-1.5 py-0.2 bg-status-success/15 text-status-success border border-status-success/30">
+          HIGH CONFIDENCE
+        </span>
+      )
+    }
+    if (score === "INFERRED" || score === "MEDIUM") {
+      return (
+        <span className="text-[10px] font-mono px-1.5 py-0.2 bg-status-warning/15 text-status-warning border border-status-warning/30">
+          INFERRED • VERIFY
+        </span>
+      )
+    }
+    return (
+      <span className="text-[10px] font-mono px-1.5 py-0.2 bg-destructive/15 text-destructive border border-destructive/30">
+        NOT FOUND • ENTER
+      </span>
+    )
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar
-        projectName="MahaRERA PDF Form Pre-Fill & Review"
+        projectName={formData?.project_name ? `MahaRERA: ${formData.project_name}` : "MahaRERA Project Setup"}
         delayRiskDays={0}
       />
 
-      <main className="p-4 md:p-6 space-y-6">
+      <main className="p-4 md:p-6 space-y-6 max-w-5xl">
         {/* Compulsory Review Alert */}
         <div className="border border-status-warning/40 bg-status-warning/10 p-4 flex items-start gap-3">
           <ShieldAlert className="w-5 h-5 text-status-warning shrink-0 mt-0.5" />
           <div className="text-xs">
             <h2 className="font-heading font-semibold text-foreground uppercase tracking-wider">
-              MahaRERA Compulsory Verification Safeguard
+              Statutory MahaRERA Verification Protocol
             </h2>
             <p className="mt-1 text-muted-foreground leading-relaxed font-sans">
-              MahaRERA PDF extraction strictly pre-fills a draft. It never auto-commits to your database.
-              As project engineer or promoter, you must review, edit where required, and explicitly confirm each value below.
+              MahaRERA PDF parsing strictly pre-fills a draft. It never auto-commits to your database.
+              As Project Manager, you must review, edit where required, and explicitly click Confirm to create the project.
             </p>
           </div>
         </div>
 
-        {/* Upload Dropzone */}
-        <div
-          {...getRootProps()}
-          className={`border-2 border-dashed p-6 text-center cursor-pointer transition-colors ${
-            isDragActive
-              ? "border-primary bg-primary/5"
-              : "border-border bg-card hover:bg-muted/30"
-          }`}
-        >
-          <input {...getInputProps()} />
-          <div className="flex flex-col items-center justify-center space-y-2">
-            <UploadCloud className="w-8 h-8 text-primary" />
-            <div className="text-xs font-mono font-medium text-foreground">
-              {isDragActive
-                ? "Drop the MahaRERA PDF certificate here..."
-                : "Drag & drop MahaRERA Registration Certificate (PDF) or click to browse"}
-            </div>
-            <div className="text-[11px] font-mono text-muted-foreground">
-              Extracts project name, registration ID, proposed handover date, FSI area, floors, and cost
-            </div>
-            {fileName && (
-              <div className="mt-2 text-xs font-mono px-2.5 py-1 bg-secondary border border-border text-foreground flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-primary" />
-                <span>{fileName}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Confirmation Status Banner */}
-        {isConfirmed && (
-          <div className="border border-status-success/40 bg-status-success/10 p-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-status-success" />
-              <div>
-                <h3 className="font-heading font-semibold text-xs text-foreground uppercase">
-                  PROJECT PARAMETERS CONFIRMED & SAVED
-                </h3>
-                <p className="text-[11px] font-mono text-muted-foreground">
-                  Data committed for {formData.project_name} ({formData.rera_registration_no}).
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-mono font-bold text-status-success px-2.5 py-1 bg-status-success/15 border border-status-success/30">
-              STATUS: CONFIRMED
-            </span>
+        {errorMessage && (
+          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* Editable Form with Confidence Badges */}
-        <div className="border border-border bg-card">
-          <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
-            <div>
-              <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
-                PRE-FILLED MAHARERA DATA FIELDS (REVIEW & EDIT)
-              </h3>
-              <p className="text-[11px] font-mono text-muted-foreground">
-                All fields are fully editable before final verification
-              </p>
+        {/* Confirmed Project Success Banner */}
+        {confirmedProject && (
+          <div className="border border-status-success/50 bg-status-success/10 p-5 space-y-3">
+            <div className="flex items-center gap-2 text-status-success font-heading font-semibold text-sm">
+              <CheckCircle2 className="w-5 h-5" />
+              <span>Project Successfully Confirmed & Created in Database!</span>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 border border-border bg-background">
-              DRAFT VERIFICATION
-            </span>
+            <p className="text-xs font-mono text-foreground">
+              Project Name: <span className="font-bold">{confirmedProject.name}</span> (ID: {confirmedProject.id})
+            </p>
+            <div className="pt-2 flex items-center gap-3">
+              <Link
+                href="/wbs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <span>Proceed to Step 2: WBS & Cost Estimation</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData(null)
+                  setFileName(null)
+                  setConfirmedProject(null)
+                }}
+                className="px-3 py-2 border border-border bg-card text-foreground font-mono text-xs hover:bg-muted"
+              >
+                Create Another Project
+              </button>
+            </div>
           </div>
+        )}
 
-          <div className="p-4 space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {/* Project Name */}
+        {/* Upload Dropzone */}
+        {!confirmedProject && (
+          <div className="space-y-3">
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${
+                isDragActive
+                  ? "border-primary bg-primary/5"
+                  : "border-border bg-card hover:bg-muted/30"
+              }`}
+            >
+              <input {...getInputProps()} />
+              <div className="flex flex-col items-center justify-center space-y-2">
+                {isParsing ? (
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                ) : (
+                  <UploadCloud className="w-8 h-8 text-primary" />
+                )}
+                <div className="text-xs font-mono font-medium text-foreground">
+                  {isParsing
+                    ? "Parsing certificate with pdfplumber & extracting statutory attributes..."
+                    : isDragActive
+                    ? "Drop the MahaRERA PDF certificate here..."
+                    : "Drag & drop MahaRERA Registration Certificate (PDF) or click to browse"}
+                </div>
+                <div className="text-[11px] font-mono text-muted-foreground">
+                  Extracts project title, registration number, promoter name, sanctioned FSI area, floors, and completion date
+                </div>
+                {fileName && (
+                  <div className="mt-2 text-xs font-mono px-2.5 py-1 bg-secondary border border-border text-foreground flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-primary" />
+                    <span>{fileName}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {!formData && !isParsing && (
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={handleStartManualEntry}
+                  className="inline-flex items-center gap-1.5 text-xs font-mono text-primary hover:underline"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Or create project by entering parameters manually</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pre-Filled Verification Form */}
+        {formData && !confirmedProject && (
+          <div className="bg-card border border-border p-5 space-y-6">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Project Name
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.project_name || "HIGH"}
-                  </span>
+                <h3 className="font-heading font-semibold text-sm text-foreground">
+                  Review & Confirm Extracted Project Specifications
+                </h3>
+                <p className="text-[11px] font-mono text-muted-foreground">
+                  All fields are editable. Verify against sanctioned Annexure drawings before confirming.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData(null)}
+                className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Project Name */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">Project Name *</label>
+                  {renderConfidenceBadge("project_name")}
                 </div>
                 <input
                   type="text"
                   value={formData.project_name}
                   onChange={(e) => setFormData({ ...formData, project_name: e.target.value })}
-                  className="w-full text-xs font-sans bg-background border border-border p-2 text-foreground font-medium"
+                  placeholder="e.g. Emerald Heights Tower A"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
+                  required
                 />
               </div>
 
               {/* RERA Number */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    MahaRERA Registration No.
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.rera_registration_no || "HIGH"}
-                  </span>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">MahaRERA Registration No *</label>
+                  {renderConfidenceBadge("rera_registration_no")}
                 </div>
                 <input
                   type="text"
                   value={formData.rera_registration_no}
                   onChange={(e) => setFormData({ ...formData, rera_registration_no: e.target.value })}
-                  className="w-full text-xs font-mono bg-background border border-border p-2 text-primary font-bold"
+                  placeholder="e.g. P52100018921"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
+                  required
                 />
               </div>
 
               {/* Promoter Name */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Promoter / Developer
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.promoter_name || "HIGH"}
-                  </span>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">Promoter / Developer Name</label>
+                  {renderConfidenceBadge("promoter_name")}
                 </div>
                 <input
                   type="text"
                   value={formData.promoter_name}
                   onChange={(e) => setFormData({ ...formData, promoter_name: e.target.value })}
-                  className="w-full text-xs font-sans bg-background border border-border p-2 text-foreground"
+                  placeholder="e.g. Solitaire Infra Projects Pvt Ltd"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
                 />
               </div>
 
-              {/* Proposed Handover Date */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Proposed Completion Date
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.proposed_completion_date || "HIGH"}
-                  </span>
+              {/* Handover Date */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">Proposed Handover Date *</label>
+                  {renderConfidenceBadge("proposed_completion_date")}
                 </div>
                 <input
                   type="text"
                   value={formData.proposed_completion_date}
                   onChange={(e) => setFormData({ ...formData, proposed_completion_date: e.target.value })}
-                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground font-bold"
+                  placeholder="DD/MM/YYYY or YYYY-MM-DD"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
+                  required
                 />
               </div>
 
-              {/* Sanctioned Built-Up Area */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Built-Up Area (sq.ft.)
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.built_up_area_sqft || "HIGH"}
-                  </span>
+              {/* Built-up Area */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">Sanctioned Built-Up Area (sq.ft) *</label>
+                  {renderConfidenceBadge("built_up_area_sqft")}
                 </div>
                 <input
                   type="number"
-                  value={formData.built_up_area_sqft}
+                  value={formData.built_up_area_sqft || ""}
                   onChange={(e) => setFormData({ ...formData, built_up_area_sqft: parseFloat(e.target.value) || 0 })}
-                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground font-bold"
+                  placeholder="e.g. 75000"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
+                  required
                 />
               </div>
 
-              {/* Carpet Area */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Carpet Area (sq.ft.)
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.carpet_area_sqft || "HIGH"}
-                  </span>
+              {/* Number of Floors */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">Number of Floors (G+X) *</label>
+                  {renderConfidenceBadge("number_of_floors")}
                 </div>
                 <input
                   type="number"
-                  value={formData.carpet_area_sqft}
-                  onChange={(e) => setFormData({ ...formData, carpet_area_sqft: parseFloat(e.target.value) || 0 })}
-                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
-                />
-              </div>
-
-              {/* Floors */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Floors Count (G+N)
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.number_of_floors || "HIGH"}
-                  </span>
-                </div>
-                <input
-                  type="number"
-                  value={formData.number_of_floors}
-                  onChange={(e) => setFormData({ ...formData, number_of_floors: parseInt(e.target.value) || 0 })}
-                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground font-bold"
+                  value={formData.number_of_floors || ""}
+                  onChange={(e) => setFormData({ ...formData, number_of_floors: parseInt(e.target.value, 10) || 1 })}
+                  placeholder="e.g. 14"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
+                  required
                 />
               </div>
 
               {/* Basements */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Basements Count
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-secondary text-muted-foreground border border-border">
-                    {formData.confidence_scores.number_of_basements || "MANUAL"}
-                  </span>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">Number of Basements</label>
+                  {renderConfidenceBadge("number_of_basements")}
                 </div>
                 <input
                   type="number"
-                  value={formData.number_of_basements}
-                  onChange={(e) => setFormData({ ...formData, number_of_basements: parseInt(e.target.value) || 0 })}
-                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
+                  value={formData.number_of_basements || ""}
+                  onChange={(e) => setFormData({ ...formData, number_of_basements: parseInt(e.target.value, 10) || 0 })}
+                  placeholder="e.g. 1"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
                 />
               </div>
 
-              {/* Total Project Cost */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase">
-                    Total Estimated Cost (INR)
-                  </label>
-                  <span className="text-[9px] font-mono px-1 bg-status-success/15 text-status-success border border-status-success/30">
-                    {formData.confidence_scores.total_project_cost || "HIGH"}
-                  </span>
+              {/* Total Estimated Cost */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <label className="text-foreground font-medium">Estimated Project Cost (INR)</label>
+                  {renderConfidenceBadge("total_project_cost")}
                 </div>
                 <input
                   type="number"
-                  value={formData.total_project_cost}
+                  value={formData.total_project_cost || ""}
                   onChange={(e) => setFormData({ ...formData, total_project_cost: parseFloat(e.target.value) || 0 })}
-                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground font-bold"
+                  placeholder="e.g. 180000000"
+                  className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
                 />
-                <span className="text-[10px] font-mono text-muted-foreground mt-0.5 block">
-                  {formatINR(formData.total_project_cost)}
-                </span>
+                {formData.total_project_cost > 0 && (
+                  <div className="text-[10px] font-mono text-muted-foreground">
+                    Approx: {formatINR(formData.total_project_cost)}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Engineer Verification Notes */}
-            <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                Engineer Verification Notes & Discrepancy Log
+            {/* Engineer Notes */}
+            <div className="space-y-1">
+              <label className="block text-xs font-mono text-muted-foreground">
+                Verification Notes & Annexure Reference
               </label>
               <textarea
-                rows={2}
                 value={userNotes}
                 onChange={(e) => setUserNotes(e.target.value)}
-                className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground leading-relaxed"
+                rows={2}
+                placeholder="e.g. Verified against sanctioned layout drawing dated 25-Oct-2026."
+                className="w-full px-3 py-2 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary"
               />
             </div>
 
-            {/* Action Buttons */}
-            <div className="pt-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Confirm & Save Button */}
+            <div className="pt-2 border-t border-border flex items-center justify-between">
               <div className="text-[11px] font-mono text-muted-foreground">
-                Clicking confirm establishes this as verified baseline project data.
+                Clicking Confirm permanently registers the project into database tables.
               </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(DEFAULT_SAMPLE_DRAFT)
-                    setIsConfirmed(false)
-                  }}
-                  className="text-xs font-mono px-3 py-1.5 border border-border bg-background hover:bg-secondary transition-colors text-foreground flex items-center gap-1.5"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>RESET</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={isParsing}
-                  className="text-xs font-mono font-medium bg-primary text-primary-foreground px-4 py-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50 border border-primary flex items-center gap-1.5"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{isConfirmed ? "RE-CONFIRM VALUES" : "CONFIRM & APPLY TO PROJECT"}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                disabled={isConfirming}
+                onClick={handleConfirm}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground font-mono text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 border border-primary shadow-sm"
+              >
+                {isConfirming ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>SAVING PROJECT TO DB...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>CONFIRM & CREATE PROJECT</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   )

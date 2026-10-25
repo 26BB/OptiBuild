@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from backend.app.core.auth import get_current_user, require_roles
+from backend.app.db.models import User
 from backend.app.schemas.wbs import (
     BuildingParametersInput,
     ParametricWbsResponse,
@@ -12,7 +14,7 @@ router = APIRouter(prefix="/wbs", tags=["Parametric WBS & Cost Estimation"])
 
 
 @router.get("/default-ratios")
-def get_default_ratios():
+def get_default_ratios(current_user: User = Depends(get_current_user)):
     """
     Returns the standard ratio and rate distribution table.
     """
@@ -20,10 +22,14 @@ def get_default_ratios():
 
 
 @router.post("/generate", response_model=ParametricWbsResponse)
-def generate_wbs(payload: BuildingParametersInput):
+def generate_wbs(
+    payload: BuildingParametersInput,
+    current_user: User = Depends(require_roles("project_manager", "admin")),
+):
     """
     Generates a parametric Work Breakdown Structure (WBS), itemized costs,
     and DAG tasks from building parameters (built-up area, floors, rate/sqft).
+    Permitted for Project Managers and Admins.
     """
     try:
         return WBSGenerator.generate(payload)

@@ -1,6 +1,12 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
 from backend.app.core.config import settings
+from backend.app.api.v1.auth import router as auth_router
+from backend.app.api.v1.users import router as users_router
+from backend.app.api.v1.projects import router as projects_router
 from backend.app.api.v1.schedule import router as schedule_router
 from backend.app.api.v1.benchmark import router as benchmark_router
 from backend.app.api.v1.optimizer import router as optimizer_router
@@ -21,12 +27,16 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Register API Routers
+app.include_router(auth_router, prefix=settings.API_V1_STR)
+app.include_router(users_router, prefix=settings.API_V1_STR)
+app.include_router(projects_router, prefix=settings.API_V1_STR)
 app.include_router(schedule_router, prefix=settings.API_V1_STR)
 app.include_router(benchmark_router, prefix=settings.API_V1_STR)
 app.include_router(optimizer_router, prefix=settings.API_V1_STR)
@@ -34,6 +44,11 @@ app.include_router(wbs_router, prefix=settings.API_V1_STR)
 app.include_router(rera_router, prefix=settings.API_V1_STR)
 app.include_router(materials_router, prefix=settings.API_V1_STR)
 app.include_router(dashboard_router, prefix=settings.API_V1_STR)
+
+# Local static uploads directory fallback
+uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/health", tags=["Health"])

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
-from typing import Dict, List
+from fastapi import APIRouter, HTTPException, Depends
+from backend.app.core.auth import get_current_user, require_roles
+from backend.app.db.models import User
 from backend.app.schemas.benchmark import (
     BenchmarkRunRequest,
     BenchmarkComparisonResult,
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/benchmark", tags=["OR-Tools CP-SAT Benchmark"])
 
 
 @router.get("/presets")
-def list_presets():
+def list_presets(current_user: User = Depends(get_current_user)):
     """
     Returns available benchmark construction problem presets.
     """
@@ -29,16 +30,19 @@ def list_presets():
 
 
 @router.post("/run", response_model=BenchmarkComparisonResult)
-def run_benchmark(payload: BenchmarkRunRequest):
+def run_benchmark(
+    payload: BenchmarkRunRequest,
+    current_user: User = Depends(require_roles("project_manager", "admin")),
+):
     """
     Runs both Genetic Algorithm and OR-Tools CP-SAT solver on the given project
     network and returns side-by-side metrics, makespans, runtimes, and markdown table.
+    Permitted for Project Managers and Admins.
     """
     try:
         tasks = payload.tasks
         limits = payload.resource_limits
 
-        # If tasks not provided, default to medium benchmark preset
         if not tasks:
             preset = BENCHMARK_PRESETS.get("medium_superstructure")
             tasks = preset["tasks"]

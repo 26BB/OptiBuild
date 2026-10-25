@@ -18,6 +18,7 @@ class MahaRERAPreFillDraft(BaseModel):
         description="Confidence per field: 'HIGH', 'MEDIUM', 'INFERRED', 'NOT_FOUND'"
     )
     raw_text_snippet: Optional[str] = None
+    raw_pdf_url: Optional[str] = None
     requires_user_confirmation: bool = Field(
         default=True,
         description="LOCKED RULE: User confirmation is compulsory before saving"
@@ -36,11 +37,13 @@ class ConfirmRERADraftRequest(BaseModel):
     number_of_floors: int
     number_of_basements: int = 0
     total_project_cost: Optional[float] = None
+    raw_pdf_url: Optional[str] = None
     user_notes: Optional[str] = None
 
 
 class ConfirmRERADraftResponse(BaseModel):
     status: str = "CONFIRMED"
+    project_id: str
     project_name: str
     rera_registration_no: str
     message: str = "MahaRERA draft confirmed and verified by user. Saved successfully."

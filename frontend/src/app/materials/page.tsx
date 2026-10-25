@@ -1,9 +1,11 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useDropzone } from "react-dropzone"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
+import { EmptyState } from "@/components/ui/EmptyState"
+import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
   Receipt,
@@ -18,6 +20,8 @@ import {
   ShieldCheck,
   AlertCircle,
   Eye,
+  Loader2,
+  Sparkles,
 } from "lucide-react"
 
 interface MaterialItem {
@@ -33,579 +37,596 @@ interface MaterialItem {
   invoice_number?: string
   wbs_code?: string
   bill_photo_name?: string
+  bill_photo_url?: string
   is_unparsed_evidence: boolean
 }
 
-interface ClassifierResult {
-  predicted_stage: "STRUCTURAL_STAGE" | "FINISHING_STAGE"
+interface SitePhotoItem {
+  id: string
+  photo_url: string
+  predicted_stage: string
   stage_label: string
   confidence_score: number
-  detected_features: string[]
-  file_name: string
-  human_verified: boolean
+  detected_features?: string[]
+  engineer_confirmed_stage?: string
+  uploaded_at?: string
 }
 
-const DEFAULT_MATERIALS: MaterialItem[] = [
-  {
-    entry_id: "MAT-001",
-    date: "2026-10-02",
-    material_category: "RMC Concrete",
-    item_description: "M25 Grade Ready Mix Concrete for Raft Footing",
-    quantity: 120,
-    unit: "Cu.m",
-    unit_rate: 4500,
-    total_cost: 540000,
-    vendor_name: "ACC Concrete Solutions",
-    invoice_number: "INV-ACC-9821",
-    wbs_code: "WBS-1.2",
-    bill_photo_name: "rmc_batch_slip_9821.pdf",
-    is_unparsed_evidence: true,
-  },
-  {
-    entry_id: "MAT-002",
-    date: "2026-10-05",
-    material_category: "Steel / Rebar",
-    item_description: "Fe 500D TMT Reinforcement Steel (12mm & 16mm)",
-    quantity: 18,
-    unit: "MT",
-    unit_rate: 58000,
-    total_cost: 1044000,
-    vendor_name: "Tata Tiscon Distributors",
-    invoice_number: "INV-TT-4412",
-    wbs_code: "WBS-2.1",
-    bill_photo_name: "tata_tiscon_weighbridge_slip.jpg",
-    is_unparsed_evidence: true,
-  },
-  {
-    entry_id: "MAT-003",
-    date: "2026-10-08",
-    material_category: "Cement",
-    item_description: "53 Grade OPC Bags (Foundation & Columns)",
-    quantity: 600,
-    unit: "Bags",
-    unit_rate: 385,
-    total_cost: 231000,
-    vendor_name: "UltraTech Cement Depot",
-    invoice_number: "INV-UT-1049",
-    wbs_code: "WBS-2.2",
-    is_unparsed_evidence: true,
-  },
-  {
-    entry_id: "MAT-004",
-    date: "2026-10-10",
-    material_category: "AAC Blocks",
-    item_description: "Autoclaved Aerated Concrete Blocks (600x200x150mm)",
-    quantity: 2400,
-    unit: "Nos",
-    unit_rate: 65,
-    total_cost: 156000,
-    vendor_name: "Siporex Blocks Pvt Ltd",
-    invoice_number: "INV-SIP-3011",
-    wbs_code: "WBS-3.1",
-    bill_photo_name: "siporex_delivery_challan.png",
-    is_unparsed_evidence: true,
-  },
-  {
-    entry_id: "MAT-005",
-    date: "2026-10-12",
-    material_category: "Sand & Aggregates",
-    item_description: "Crushed Sand (VSI) & 20mm Blue Metal Aggregates",
-    quantity: 45,
-    unit: "Brass",
-    unit_rate: 7200,
-    total_cost: 324000,
-    vendor_name: "Shinde Stone Crushers",
-    invoice_number: "INV-SSC-0842",
-    wbs_code: "WBS-1.2",
-    bill_photo_name: "quarry_receipt_0842.jpg",
-    is_unparsed_evidence: true,
-  },
-]
-
 export default function MaterialsPage() {
-  const [materials, setMaterials] = useState<MaterialItem[]>(DEFAULT_MATERIALS)
-  const [photoResult, setPhotoResult] = useState<ClassifierResult | null>({
-    predicted_stage: "STRUCTURAL_STAGE",
-    stage_label: "Structural Stage (RCC Columns / Formwork In-Progress)",
-    confidence_score: 0.92,
-    detected_features: [
-      "High spatial edge density (28.4): rebar grid / formwork patterns",
-      "Cementitious raw concrete gray spectrum detected",
-    ],
-    file_name: "site_cam_tower_a_oct13.jpg",
-    human_verified: false,
-  })
-  const [isClassifying, setIsClassifying] = useState(false)
-  const [showAddModal, setShowAddModal] = useState(false)
+  const { user, token, activeProjectId, activeProject, hasPermission } = useAuth()
 
-  // Form states
-  const [formDate, setFormDate] = useState("2026-10-13")
+  const [materials, setMaterials] = useState<MaterialItem[]>([])
+  const [totalExpenditure, setTotalExpenditure] = useState<number>(0)
+  const [categoryTotals, setCategoryTotals] = useState<Record<string, number>>({})
+  const [photos, setPhotos] = useState<SitePhotoItem[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [isClassifying, setIsClassifying] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showAddForm, setShowAddForm] = useState<boolean>(false)
+
+  // Material Log Form State
+  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0])
   const [formCategory, setFormCategory] = useState("Cement")
   const [formDesc, setFormDesc] = useState("")
-  const [formQty, setFormQty] = useState(100)
+  const [formQty, setFormQty] = useState<number>(100)
   const [formUnit, setFormUnit] = useState("Bags")
-  const [formRate, setFormRate] = useState(380)
+  const [formRate, setFormRate] = useState<number>(380)
   const [formVendor, setFormVendor] = useState("")
   const [formInvoice, setFormInvoice] = useState("")
-  const [formWbs, setFormWbs] = useState("WBS-2.1")
-  const [formBillName, setFormBillName] = useState("")
+  const [formWbs, setFormWbs] = useState("WBS-1.2")
+  const [uploadedBillUrl, setUploadedBillUrl] = useState<string | null>(null)
+  const [uploadedBillName, setUploadedBillName] = useState<string | null>(null)
 
-  const onDropPhoto = async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return
+  // Fetch materials and photos
+  const fetchMaterialsAndPhotos = async () => {
+    if (!activeProjectId || !token) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      // 1. Fetch materials
+      const matRes = await fetch(getApiUrl(`/api/v1/materials/log?project_id=${activeProjectId}`), {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (matRes.ok) {
+        const matData = await matRes.json()
+        setMaterials(matData.items || [])
+        setTotalExpenditure(matData.total_expenditure || 0)
+        setCategoryTotals(matData.category_totals || {})
+      }
+
+      // 2. Fetch photos
+      const photoRes = await fetch(getApiUrl(`/api/v1/projects/${activeProjectId}/photos`), {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (photoRes.ok) {
+        const photoData = await photoRes.json()
+        setPhotos(photoData || [])
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load project records.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMaterialsAndPhotos()
+  }, [activeProjectId, token])
+
+  // Bill photo dropzone (Store Keeper)
+  const onDropBill = async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0 || !token) return
     const file = acceptedFiles[0]
-    setIsClassifying(true)
-
+    setUploadedBillName(file.name)
     try {
       const body = new FormData()
       body.append("file", file)
-
-      const res = await fetch(getApiUrl("/api/v1/materials/classify-photo"), {
+      const res = await fetch(getApiUrl("/api/v1/materials/upload-bill"), {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body,
-      }).catch(() => null)
-
-      if (res && res.ok) {
+      })
+      if (res.ok) {
         const data = await res.json()
-        setPhotoResult(data)
-      } else {
-        // Fallback simulated classification
-        setPhotoResult({
-          predicted_stage: "STRUCTURAL_STAGE",
-          stage_label: "Structural Stage (RCC / Earthwork / Shoring)",
-          confidence_score: 0.88,
-          detected_features: [
-            "High edge density from formwork lattice",
-            "Muted concrete gray tone dominance",
-          ],
-          file_name: file.name,
-          human_verified: false,
-        })
+        setUploadedBillUrl(data.file_url)
       }
+    } catch (err) {
+      console.error("Bill upload error:", err)
+    }
+  }
+
+  const { getRootProps: getBillRootProps, getInputProps: getBillInputProps } = useDropzone({
+    onDrop: onDropBill,
+    maxFiles: 1,
+  })
+
+  // Site photo dropzone (Site Engineer)
+  const onDropSitePhoto = async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0 || !activeProjectId || !token) return
+    const file = acceptedFiles[0]
+    setIsClassifying(true)
+    try {
+      const body = new FormData()
+      body.append("file", file)
+      const res = await fetch(getApiUrl(`/api/v1/projects/${activeProjectId}/photos`), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      })
+      if (res.ok) {
+        await fetchMaterialsAndPhotos()
+      }
+    } catch (err) {
+      console.error("Site photo error:", err)
     } finally {
       setIsClassifying(false)
     }
   }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: onDropPhoto,
-    accept: { "image/*": [".jpg", ".jpeg", ".png", ".webp"] },
+  const { getRootProps: getPhotoRootProps, getInputProps: getPhotoInputProps } = useDropzone({
+    onDrop: onDropSitePhoto,
+    accept: { "image/*": [".jpg", ".jpeg", ".png"] },
     maxFiles: 1,
   })
 
-  const handleAddMaterial = (e: React.FormEvent) => {
+  const handleCreateMaterialLog = async (e: React.FormEvent) => {
     e.preventDefault()
-    const newItem: MaterialItem = {
-      entry_id: `MAT-${String(materials.length + 1).padStart(3, "0")}`,
-      date: formDate,
-      material_category: formCategory,
-      item_description: formDesc || `${formCategory} procurement`,
-      quantity: formQty,
-      unit: formUnit,
-      unit_rate: formRate,
-      total_cost: formQty * formRate,
-      vendor_name: formVendor || "Local Supplier",
-      invoice_number: formInvoice || undefined,
-      wbs_code: formWbs,
-      bill_photo_name: formBillName || undefined,
-      is_unparsed_evidence: true,
+    if (!activeProjectId || !token) return
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const res = await fetch(getApiUrl("/api/v1/materials/log"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          project_id: activeProjectId,
+          date: formDate,
+          material_category: formCategory,
+          item_description: formDesc || `${formCategory} delivery`,
+          quantity: formQty,
+          unit: formUnit,
+          unit_rate: formRate,
+          vendor_name: formVendor || "Site Supplier",
+          invoice_number: formInvoice || "CHALLAN-PENDING",
+          wbs_code: formWbs,
+          bill_photo_name: uploadedBillName,
+          bill_photo_url: uploadedBillUrl,
+        }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.detail || "Failed to log material delivery.")
+      }
+
+      // Reset form
+      setFormDesc("")
+      setUploadedBillUrl(null)
+      setUploadedBillName(null)
+      setShowAddForm(false)
+      await fetchMaterialsAndPhotos()
+    } catch (err: any) {
+      setError(err.message || "Failed to create material record.")
+    } finally {
+      setIsSubmitting(false)
     }
-    setMaterials([newItem, ...materials])
-    setShowAddModal(false)
-    setFormDesc("")
-    setFormBillName("")
   }
 
-  const totalSpent = materials.reduce((acc, m) => acc + m.total_cost, 0)
-  const steelSpend = materials
-    .filter((m) => m.material_category.includes("Steel"))
-    .reduce((acc, m) => acc + m.total_cost, 0)
-  const concreteSpend = materials
-    .filter((m) => m.material_category.includes("Concrete") || m.material_category === "Cement")
-    .reduce((acc, m) => acc + m.total_cost, 0)
+  if (!activeProjectId) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <TopBar projectName="Material & Cost Log" />
+        <main className="p-6">
+          <EmptyState
+            title="No Active Project Selected"
+            description="Please select an active project from the sidebar to view material delivery receipts or log new supplier invoices."
+          />
+        </main>
+      </div>
+    )
+  }
+
+  const canLogMaterial = hasPermission(["store_keeper", "project_manager", "admin"])
+  const canUploadPhoto = hasPermission(["site_engineer", "project_manager", "admin"])
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar projectName="Site Material Log & Binary CV Progress Classifier" delayRiskDays={0} />
+      <TopBar
+        projectName={activeProject?.name ? `Materials: ${activeProject.name}` : "Material & Cost Log"}
+        delayRiskDays={activeProject?.delay_days || 0}
+      />
 
       <main className="p-4 md:p-6 space-y-6">
-        {/* Metric Ribbons */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                Total Material Spend
-              </span>
-              <Coins className="w-3.5 h-3.5 text-primary" />
-            </div>
-            <div className="mt-1 text-2xl font-mono font-bold text-foreground">
-              {formatINR(totalSpent)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              Across {materials.length} verified consignments
-            </div>
+        {/* Top Summary Banner */}
+        <div className="border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-heading font-semibold text-base text-foreground flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-primary" />
+              <span>Material Procurement Log & Statutory Audit Proofs</span>
+            </h2>
+            <p className="text-xs font-mono text-muted-foreground mt-0.5">
+              Invoice Evidence Linked to WBS Packages • Real Site Rate Inflation Tracking
+            </p>
           </div>
 
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                Steel & Rebar
-              </span>
-              <Layers className="w-3.5 h-3.5 text-foreground" />
-            </div>
-            <div className="mt-1 text-2xl font-mono font-bold text-foreground">
-              {formatINR(steelSpend)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              {((steelSpend / (totalSpent || 1)) * 100).toFixed(1)}% of materials budget
-            </div>
-          </div>
-
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                RMC & Cement
-              </span>
-              <Truck className="w-3.5 h-3.5 text-foreground" />
-            </div>
-            <div className="mt-1 text-2xl font-mono font-bold text-foreground">
-              {formatINR(concreteSpend)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              Foundation & columns casting
-            </div>
-          </div>
-
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                Active CV Phase
-              </span>
-              <Camera className="w-3.5 h-3.5 text-primary" />
-            </div>
-            <div className="mt-1 text-sm font-mono font-bold text-primary truncate">
-              {photoResult?.predicted_stage === "STRUCTURAL_STAGE" ? "STRUCTURAL" : "FINISHING"}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              {((photoResult?.confidence_score || 0) * 100).toFixed(0)}% CV Confidence
-            </div>
+          <div className="flex items-center gap-3">
+            {canLogMaterial && (
+              <button
+                type="button"
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{showAddForm ? "CLOSE FORM" : "LOG NEW MATERIAL"}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Binary CV Progress Classifier Widget */}
-        <div className="border border-border bg-card">
-          <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Camera className="w-4 h-4 text-primary" />
-              <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
-                SITE PHOTO PROGRESS CLASSIFIER (BINARY CV)
-              </h3>
-            </div>
-            <span className="text-[10px] font-mono text-muted-foreground">
-              LOCKED RULE: BINARY CLASSIFICATION ONLY • NO OBJECT DETECTION
-            </span>
+        {error && (
+          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
           </div>
+        )}
 
-          <div className="p-4 grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-            {/* Upload Box */}
-            <div className="md:col-span-5">
-              <div
-                {...getRootProps()}
-                className={`border-2 border-dashed p-6 text-center cursor-pointer transition-colors ${
-                  isDragActive
-                    ? "border-primary bg-primary/5"
-                    : "border-border bg-background hover:bg-muted/30"
-                }`}
-              >
-                <input {...getInputProps()} />
-                <div className="flex flex-col items-center justify-center space-y-2">
-                  <UploadCloud className="w-7 h-7 text-primary" />
-                  <div className="text-xs font-mono font-medium text-foreground">
-                    {isClassifying
-                      ? "Classifying site features..."
-                      : "Drop site photo or click to upload"}
-                  </div>
-                  <div className="text-[11px] font-mono text-muted-foreground">
-                    Detects: Structural Stage vs Finishing Stage
-                  </div>
+        {/* Add Material Delivery Form (Store Keeper) */}
+        {showAddForm && canLogMaterial && (
+          <form
+            onSubmit={handleCreateMaterialLog}
+            className="border border-primary/50 bg-card p-5 space-y-4"
+          >
+            <div className="text-xs font-mono uppercase text-primary font-semibold border-b border-border pb-2">
+              Record Site Material Receipt & Delivery Challan
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+              <div>
+                <label className="block text-muted-foreground mb-1">Receipt Date</label>
+                <input
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">Material Category</label>
+                <select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                >
+                  <option value="Cement">Cement (Bags)</option>
+                  <option value="Steel / Rebar">Steel / Rebar (MT)</option>
+                  <option value="RMC Concrete">RMC Concrete (Cu.m)</option>
+                  <option value="Sand & Aggregates">Sand & Aggregates (Brass)</option>
+                  <option value="AAC Blocks">AAC Blocks (Nos)</option>
+                  <option value="Electrical & MEP">Electrical & MEP</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="Paint & Finishes">Paint & Finishes</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">Quantity</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formQty}
+                  onChange={(e) => setFormQty(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">Unit of Measure</label>
+                <input
+                  type="text"
+                  value={formUnit}
+                  onChange={(e) => setFormUnit(e.target.value)}
+                  placeholder="Bags, MT, Cu.m, Nos"
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">Unit Rate (₹)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formRate}
+                  onChange={(e) => setFormRate(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">Vendor / Supplier</label>
+                <input
+                  type="text"
+                  value={formVendor}
+                  onChange={(e) => setFormVendor(e.target.value)}
+                  placeholder="e.g. UltraTech Cement Depot"
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">Invoice / Challan No</label>
+                <input
+                  type="text"
+                  value={formInvoice}
+                  onChange={(e) => setFormInvoice(e.target.value)}
+                  placeholder="e.g. INV-2026-908"
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-muted-foreground mb-1">Linked WBS Code</label>
+                <input
+                  type="text"
+                  value={formWbs}
+                  onChange={(e) => setFormWbs(e.target.value)}
+                  placeholder="e.g. WBS-1.2"
+                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-mono text-muted-foreground mb-1">
+                  Item Description / Grade Specification
+                </label>
+                <input
+                  type="text"
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="e.g. M25 Grade Ready Mix Concrete for Podium Casting"
+                  className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground"
+                />
+              </div>
+
+              {/* Bill Attachment Dropzone */}
+              <div>
+                <label className="block text-xs font-mono text-muted-foreground mb-1">
+                  Attach Invoice / Weighbridge Slip (Unparsed Evidence)
+                </label>
+                <div
+                  {...getBillRootProps()}
+                  className="p-3 border border-dashed border-border bg-muted/20 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                >
+                  <input {...getBillInputProps()} />
+                  <span className="text-[11px] font-mono text-muted-foreground flex items-center justify-center gap-1.5">
+                    <Paperclip className="w-3.5 h-3.5 text-primary" />
+                    <span>{uploadedBillName || "Drop bill PDF/image or click to browse"}</span>
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Results Display */}
-            <div className="md:col-span-7 space-y-3">
-              {photoResult ? (
-                <div className="border border-border p-3.5 bg-secondary/50 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase text-muted-foreground block">
-                        PREDICTED CONSTRUCTION STAGE
-                      </span>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span
-                          className={`text-xs font-mono font-bold px-2 py-0.5 border ${
-                            photoResult.predicted_stage === "STRUCTURAL_STAGE"
-                              ? "bg-primary/10 border-primary text-primary"
-                              : "bg-status-success/10 border-status-success text-status-success"
-                          }`}
-                        >
-                          {photoResult.predicted_stage}
-                        </span>
-                        <span className="text-xs font-mono text-muted-foreground">
-                          ({(photoResult.confidence_score * 100).toFixed(0)}% Confidence)
-                        </span>
-                      </div>
-                    </div>
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <div className="text-xs font-mono text-muted-foreground">
+                Calculated Line Cost: <span className="font-bold text-foreground">{formatINR(formQty * formRate)}</span>
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? "SAVING DELIVERY LOG..." : "CONFIRM & LOG MATERIAL"}
+              </button>
+            </div>
+          </form>
+        )}
 
-                    <button
-                      onClick={() =>
-                        setPhotoResult({
-                          ...photoResult,
-                          predicted_stage:
-                            photoResult.predicted_stage === "STRUCTURAL_STAGE"
-                              ? "FINISHING_STAGE"
-                              : "STRUCTURAL_STAGE",
-                          human_verified: true,
-                        })
-                      }
-                      className="text-[11px] font-mono px-2 py-1 border border-border bg-card hover:bg-muted text-foreground transition-colors"
-                    >
-                      {photoResult.human_verified ? "OVERRIDDEN BY ENGINEER" : "OVERRIDE STAGE"}
-                    </button>
-                  </div>
+        {/* Spend KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 border border-border bg-card">
+            <div className="text-[10px] font-mono uppercase text-muted-foreground">
+              Total Actual Material Expenditure
+            </div>
+            <div className="text-xl font-bold font-mono text-foreground mt-1">
+              {formatINR(totalExpenditure)}
+            </div>
+            <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+              Across {materials.length} verified vendor receipts
+            </div>
+          </div>
 
-                  <div className="text-xs font-sans text-foreground font-medium">
-                    {photoResult.stage_label}
-                  </div>
+          <div className="p-4 border border-border bg-card">
+            <div className="text-[10px] font-mono uppercase text-muted-foreground">
+              Categories Tracked
+            </div>
+            <div className="text-xl font-bold font-mono text-primary mt-1">
+              {Object.keys(categoryTotals).length} Material Types
+            </div>
+            <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+              Dynamic unit-rate inflation calculated
+            </div>
+          </div>
 
-                  <div className="border-t border-border/60 pt-2 space-y-1">
-                    <span className="text-[10px] font-mono uppercase text-muted-foreground block">
-                      Detected Visual Features:
-                    </span>
-                    {photoResult.detected_features.map((feat, idx) => (
-                      <div key={idx} className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-primary rounded-none inline-block" />
-                        <span>{feat}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="text-[10px] font-mono text-muted-foreground border-t border-border/40 pt-1.5 flex justify-between">
-                    <span>File: {photoResult.file_name}</span>
-                    <span>Status: {photoResult.human_verified ? "Verified by Engineer" : "AI Predicted"}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 text-center text-xs font-mono text-muted-foreground border border-dashed border-border">
-                  Upload a site photo to trigger progress classification
-                </div>
-              )}
+          <div className="p-4 border border-border bg-card">
+            <div className="text-[10px] font-mono uppercase text-muted-foreground">
+              Audited Site Photos
+            </div>
+            <div className="text-xl font-bold font-mono text-foreground mt-1">
+              {photos.length} Captured
+            </div>
+            <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+              Computer Vision stage verified
             </div>
           </div>
         </div>
 
-        {/* Material & Cost Log Header & Actions */}
-        <div className="border border-border bg-card">
-          <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
+        {/* Material Entries Table */}
+        {isLoading ? (
+          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <span>Loading Material Logs...</span>
+          </div>
+        ) : materials.length === 0 ? (
+          <EmptyState
+            title="No Material Invoices Logged for this Project"
+            description="Store Keepers can log material delivery slips, invoices, and weighbridge receipts to feed real purchase rates into the Budget vs Actual engine."
+            actionLabel={canLogMaterial ? "Log First Material Delivery" : undefined}
+            onAction={canLogMaterial ? () => setShowAddForm(true) : undefined}
+          />
+        ) : (
+          <div className="border border-border bg-card overflow-hidden">
+            <div className="p-3 bg-muted/30 border-b border-border flex items-center justify-between">
+              <span className="font-heading font-semibold text-xs text-foreground">
+                Verified Material Log Entries
+              </span>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                LOCKED RULE: Invoices preserved as unparsed audit evidence
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-b border-border">
+                  <tr>
+                    <th className="py-2 px-3">Entry ID</th>
+                    <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3">Category</th>
+                    <th className="py-2 px-3">Description</th>
+                    <th className="py-2 px-3">Quantity</th>
+                    <th className="py-2 px-3">Unit Rate</th>
+                    <th className="py-2 px-3">Total Amount</th>
+                    <th className="py-2 px-3">Vendor / Invoice</th>
+                    <th className="py-2 px-3">Evidence</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {materials.map((m) => (
+                    <tr key={m.entry_id} className="hover:bg-muted/30">
+                      <td className="py-2 px-3 font-semibold text-primary">{m.entry_id}</td>
+                      <td className="py-2 px-3 text-muted-foreground">{m.date}</td>
+                      <td className="py-2 px-3">
+                        <span className="px-1.5 py-0.5 bg-secondary border border-border text-[10px]">
+                          {m.material_category}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-foreground font-sans max-w-xs truncate">
+                        {m.item_description}
+                      </td>
+                      <td className="py-2 px-3 font-semibold text-foreground">
+                        {m.quantity.toLocaleString()} {m.unit}
+                      </td>
+                      <td className="py-2 px-3 text-muted-foreground">₹{m.unit_rate.toLocaleString()}</td>
+                      <td className="py-2 px-3 font-semibold text-foreground">{formatINR(m.total_cost)}</td>
+                      <td className="py-2 px-3 text-muted-foreground">
+                        <div>{m.vendor_name}</div>
+                        <div className="text-[10px] text-muted-foreground/80">{m.invoice_number}</div>
+                      </td>
+                      <td className="py-2 px-3">
+                        {m.bill_photo_url ? (
+                          <a
+                            href={m.bill_photo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                          >
+                            <Paperclip className="w-3 h-3" />
+                            <span>View Bill</span>
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground/60">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Site Photos & Classification Section */}
+        <div className="border border-border bg-card p-4 space-y-4">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
-              <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
-                MATERIAL & PROCUREMENT COST LOG
+              <h3 className="font-heading font-semibold text-xs text-foreground flex items-center gap-1.5">
+                <Camera className="w-3.5 h-3.5 text-primary" />
+                <span>Site Inspection Photos & Structural Stage Classifier</span>
               </h3>
               <p className="text-[11px] font-mono text-muted-foreground">
-                Documentary evidence stored as unparsed bill attachments per audit compliance
+                Computer Vision heuristics classify rebar grid density vs planar finishing surfaces.
               </p>
             </div>
 
-            <button
-              onClick={() => setShowAddModal(!showAddModal)}
-              className="text-xs font-mono font-medium bg-primary text-primary-foreground px-3 py-1.5 hover:bg-primary/90 transition-colors border border-primary flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>RECORD SHIPMENT</span>
-            </button>
+            {canUploadPhoto && (
+              <div
+                {...getPhotoRootProps()}
+                className="px-3 py-1.5 bg-secondary border border-border text-foreground hover:bg-muted cursor-pointer text-xs font-mono font-medium flex items-center gap-1.5"
+              >
+                <input {...getPhotoInputProps()} />
+                {isClassifying ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                ) : (
+                  <UploadCloud className="w-3.5 h-3.5 text-primary" />
+                )}
+                <span>{isClassifying ? "CLASSIFYING..." : "UPLOAD SITE PHOTO"}</span>
+              </div>
+            )}
           </div>
 
-          {/* New Entry Quick Form */}
-          {showAddModal && (
-            <form onSubmit={handleAddMaterial} className="p-4 border-b border-border bg-muted/20 space-y-3">
-              <div className="text-xs font-mono font-bold text-foreground uppercase">
-                Add Material Procurement Record
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                    Receipt Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full text-xs font-mono bg-background border border-border p-1.5 text-foreground"
-                    required
-                  />
+          {photos.length === 0 ? (
+            <div className="p-6 border border-dashed border-border text-center text-xs font-mono text-muted-foreground">
+              No site photos uploaded for this project yet. Site Engineers can upload photos to verify work progress.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {photos.map((p) => (
+                <div key={p.id} className="border border-border bg-background p-3 space-y-2">
+                  <div className="aspect-video bg-muted/40 relative overflow-hidden border border-border flex items-center justify-center">
+                    <img
+                      src={p.photo_url}
+                      alt={p.stage_label}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback placeholder if image not reachable
+                        ;(e.target as any).style.display = "none"
+                      }}
+                    />
+                    <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-background/90 border border-border text-[9px] font-mono">
+                      {Math.round(p.confidence_score * 100)}% CONFIDENCE
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-foreground">{p.stage_label}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground">
+                      Stage: <span className="font-bold text-primary">{p.predicted_stage}</span>
+                    </div>
+                    {p.uploaded_at && (
+                      <div className="text-[9px] font-mono text-muted-foreground mt-0.5">
+                        {new Date(p.uploaded_at).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full text-xs font-mono bg-background border border-border p-1.5 text-foreground"
-                  >
-                    <option value="Cement">Cement</option>
-                    <option value="Steel / Rebar">Steel / Rebar</option>
-                    <option value="RMC Concrete">RMC Concrete</option>
-                    <option value="Sand & Aggregates">Sand & Aggregates</option>
-                    <option value="AAC Blocks">AAC Blocks</option>
-                    <option value="Plumbing & Electrical">Plumbing & Electrical</option>
-                    <option value="Paint & Tiles">Paint & Tiles</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                    Quantity
-                  </label>
-                  <input
-                    type="number"
-                    step="1"
-                    min="1"
-                    value={formQty}
-                    onChange={(e) => setFormQty(parseFloat(e.target.value) || 0)}
-                    className="w-full text-xs font-mono bg-background border border-border p-1.5 text-foreground"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                    Unit Rate (INR)
-                  </label>
-                  <input
-                    type="number"
-                    step="5"
-                    min="1"
-                    value={formRate}
-                    onChange={(e) => setFormRate(parseFloat(e.target.value) || 0)}
-                    className="w-full text-xs font-mono bg-background border border-border p-1.5 text-foreground"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                    Item Description
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 53 Grade OPC Bags"
-                    value={formDesc}
-                    onChange={(e) => setFormDesc(e.target.value)}
-                    className="w-full text-xs font-sans bg-background border border-border p-1.5 text-foreground"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                    Vendor / Supplier
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. UltraTech Depot"
-                    value={formVendor}
-                    onChange={(e) => setFormVendor(e.target.value)}
-                    className="w-full text-xs font-sans bg-background border border-border p-1.5 text-foreground"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                    Bill Photo Attachment (Evidence)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. invoice_scan_982.pdf"
-                    value={formBillName}
-                    onChange={(e) => setFormBillName(e.target.value)}
-                    className="w-full text-xs font-mono bg-background border border-border p-1.5 text-foreground"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-[11px] font-mono text-status-warning">
-                  Notice: Bill photo will be archived as unparsed evidence only.
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="text-xs font-mono px-3 py-1 border border-border text-foreground hover:bg-muted"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="text-xs font-mono px-4 py-1 bg-primary text-primary-foreground font-medium"
-                  >
-                    Save Entry
-                  </button>
-                </div>
-              </div>
-            </form>
+              ))}
+            </div>
           )}
-
-          {/* Dense Material Register Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-[10px] text-muted-foreground uppercase">
-                  <th className="p-2.5 font-semibold">Entry ID</th>
-                  <th className="p-2.5 font-semibold">Date</th>
-                  <th className="p-2.5 font-semibold">Category</th>
-                  <th className="p-2.5 font-semibold">Item Description</th>
-                  <th className="p-2.5 font-semibold text-right">Quantity</th>
-                  <th className="p-2.5 font-semibold text-right">Unit Rate</th>
-                  <th className="p-2.5 font-semibold text-right">Total Cost</th>
-                  <th className="p-2.5 font-semibold">Vendor</th>
-                  <th className="p-2.5 font-semibold">Bill Evidence</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {materials.map((mat) => (
-                  <tr key={mat.entry_id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-2.5 font-bold text-foreground">{mat.entry_id}</td>
-                    <td className="p-2.5 text-muted-foreground">{mat.date}</td>
-                    <td className="p-2.5 font-semibold text-foreground">{mat.material_category}</td>
-                    <td className="p-2.5 font-sans font-medium text-foreground">{mat.item_description}</td>
-                    <td className="p-2.5 text-right font-medium">
-                      {mat.quantity.toLocaleString("en-IN")} {mat.unit}
-                    </td>
-                    <td className="p-2.5 text-right text-muted-foreground">
-                      ₹{mat.unit_rate.toLocaleString("en-IN")}
-                    </td>
-                    <td className="p-2.5 text-right font-bold text-primary">
-                      {formatINR(mat.total_cost)}
-                    </td>
-                    <td className="p-2.5 text-muted-foreground truncate max-w-[150px]">
-                      {mat.vendor_name}
-                    </td>
-                    <td className="p-2.5">
-                      {mat.bill_photo_name ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 bg-secondary border border-border text-foreground">
-                          <Paperclip className="w-3 h-3 text-primary" />
-                          <span className="truncate max-w-[100px]">{mat.bill_photo_name}</span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-[10px]">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       </main>
     </div>

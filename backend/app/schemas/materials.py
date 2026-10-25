@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 class MaterialLogItem(BaseModel):
     entry_id: str = Field(..., description="Unique record code, e.g. MAT-001")
+    project_id: Optional[str] = None
     date: str = Field(..., description="Date of receipt (YYYY-MM-DD)")
     material_category: str = Field(
         ...,
@@ -26,6 +27,7 @@ class MaterialLogItem(BaseModel):
 
 
 class CreateMaterialLogRequest(BaseModel):
+    project_id: Optional[str] = None
     date: str
     material_category: str
     item_description: str

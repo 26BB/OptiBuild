@@ -1,6 +1,8 @@
+import uuid
 from collections import defaultdict
 from typing import Dict, List, Optional
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Query, status
+from sqlalchemy.orm import Session
 
 from backend.app.schemas.materials import (
     MaterialLogItem,
@@ -8,142 +10,155 @@ from backend.app.schemas.materials import (
     MaterialLogSummary,
     PhotoClassificationResponse,
 )
+from backend.app.core.auth import get_current_user, require_roles
+from backend.app.db.session import get_db
+from backend.app.db.models import User, MaterialLogModel, Project
+from backend.app.storage.s3 import storage
 from backend.app.engine.classifier import SitePhotoClassifier
 
 router = APIRouter(prefix="/materials", tags=["Material Log & Site Photo Classifier"])
 
-# Seed in-memory store with realistic site materials
-MATERIAL_LOG_STORE: List[MaterialLogItem] = [
-    MaterialLogItem(
-        entry_id="MAT-001",
-        date="2026-10-02",
-        material_category="RMC Concrete",
-        item_description="M25 Grade Ready Mix Concrete for Raft Footing",
-        quantity=120.0,
-        unit="Cu.m",
-        unit_rate=4500.0,
-        total_cost=540000.0,
-        vendor_name="ACC Concrete Solutions",
-        invoice_number="INV-ACC-9821",
-        wbs_code="WBS-1.2",
-        bill_photo_name="rmc_batch_slip_9821.pdf",
-        is_unparsed_evidence=True,
-    ),
-    MaterialLogItem(
-        entry_id="MAT-002",
-        date="2026-10-05",
-        material_category="Steel / Rebar",
-        item_description="Fe 500D TMT Reinforcement Steel (12mm & 16mm)",
-        quantity=18.0,
-        unit="MT",
-        unit_rate=58000.0,
-        total_cost=1044000.0,
-        vendor_name="Tata Tiscon Distributors",
-        invoice_number="INV-TT-4412",
-        wbs_code="WBS-2.1",
-        bill_photo_name="tata_tiscon_weighbridge_slip.jpg",
-        is_unparsed_evidence=True,
-    ),
-    MaterialLogItem(
-        entry_id="MAT-003",
-        date="2026-10-08",
-        material_category="Cement",
-        item_description="53 Grade OPC Bags (Foundation & Columns)",
-        quantity=600.0,
-        unit="Bags",
-        unit_rate=385.0,
-        total_cost=231000.0,
-        vendor_name="UltraTech Cement Depot",
-        invoice_number="INV-UT-1049",
-        wbs_code="WBS-2.2",
-        bill_photo_name=None,
-        is_unparsed_evidence=True,
-    ),
-    MaterialLogItem(
-        entry_id="MAT-004",
-        date="2026-10-10",
-        material_category="AAC Blocks",
-        item_description="Autoclaved Aerated Concrete Blocks (600x200x150mm)",
-        quantity=2400.0,
-        unit="Nos",
-        unit_rate=65.0,
-        total_cost=156000.0,
-        vendor_name="Siporex Blocks Pvt Ltd",
-        invoice_number="INV-SIP-3011",
-        wbs_code="WBS-3.1",
-        bill_photo_name="siporex_delivery_challan.png",
-        is_unparsed_evidence=True,
-    ),
-    MaterialLogItem(
-        entry_id="MAT-005",
-        date="2026-10-12",
-        material_category="Sand & Aggregates",
-        item_description="Crushed Sand (VSI) & 20mm Blue Metal Aggregates",
-        quantity=45.0,
-        unit="Brass",
-        unit_rate=7200.0,
-        total_cost=324000.0,
-        vendor_name="Shinde Stone Crushers",
-        invoice_number="INV-SSC-0842",
-        wbs_code="WBS-1.2",
-        bill_photo_name="quarry_receipt_0842.jpg",
-        is_unparsed_evidence=True,
-    ),
-]
-
 
 @router.get("/log", response_model=MaterialLogSummary)
-def get_material_log():
+def get_material_log(
+    project_id: Optional[str] = Query(None, description="Optional project ID to filter materials"),
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
-    Returns all logged material entries, category totals, and grand total expenditure.
+    Returns real logged material entries from the database, category totals,
+    and grand total expenditure for the selected project (or all projects).
     """
-    total = sum(item.total_cost for item in MATERIAL_LOG_STORE)
-    cats = defaultdict(float)
-    for item in MATERIAL_LOG_STORE:
-        cats[item.material_category] += item.total_cost
+    query = db.query(MaterialLogModel)
+    if project_id:
+        query = query.filter(MaterialLogModel.project_id == project_id)
+
+    db_entries = query.order_by(MaterialLogModel.date.desc(), MaterialLogModel.created_at.desc()).all()
+
+    category_totals: Dict[str, float] = defaultdict(float)
+    items: List[MaterialLogItem] = []
+
+    for entry in db_entries:
+        total = float(entry.total_amount)
+        category_totals[entry.material_category] += total
+        items.append(
+            MaterialLogItem(
+                entry_id=entry.entry_id,
+                project_id=entry.project_id,
+                date=entry.date,
+                material_category=entry.material_category,
+                item_description=entry.item_description or entry.material_category,
+                quantity=float(entry.quantity),
+                unit=entry.unit,
+                unit_rate=float(entry.unit_rate),
+                total_cost=total,
+                vendor_name=entry.supplier_name,
+                invoice_number=entry.invoice_no,
+                wbs_code=entry.wbs_code,
+                bill_photo_name=entry.bill_attachment_url.split("/")[-1] if entry.bill_attachment_url else None,
+                bill_photo_url=entry.bill_attachment_url,
+                is_unparsed_evidence=True,
+            )
+        )
+
+    grand_total = sum(i.total_cost for i in items)
 
     return MaterialLogSummary(
-        total_expenditure=round(total, 2),
-        total_entries_count=len(MATERIAL_LOG_STORE),
-        category_totals=dict(cats),
-        items=MATERIAL_LOG_STORE,
+        total_expenditure=round(grand_total, 2),
+        total_entries_count=len(items),
+        category_totals={k: round(v, 2) for k, v in category_totals.items()},
+        items=items,
     )
 
 
 @router.post("/log", response_model=MaterialLogItem)
-def add_material_entry(payload: CreateMaterialLogRequest):
+def create_material_entry(
+    payload: CreateMaterialLogRequest,
+    current_user: User = Depends(require_roles("store_keeper", "project_manager", "admin")),
+    db: Session = Depends(get_db),
+):
     """
-    Records a material expenditure.
-    LOCKED RULE: Bill photos are stored as unparsed documentary evidence only.
+    Creates a new material receipt record in the database.
+    Permitted for Store Keepers, Project Managers, and Admins.
     """
-    total = round(payload.quantity * payload.unit_rate, 2)
-    new_id = f"MAT-{len(MATERIAL_LOG_STORE) + 1:03d}"
+    # Count existing entries to format entry_id MAT-XXX
+    count = db.query(MaterialLogModel).count()
+    entry_id = f"MAT-{count + 1:04d}"
 
-    entry = MaterialLogItem(
-        entry_id=new_id,
+    total_cost = round(payload.quantity * payload.unit_rate, 2)
+
+    db_entry = MaterialLogModel(
+        entry_id=entry_id,
+        project_id=payload.project_id,
         date=payload.date,
         material_category=payload.material_category,
         item_description=payload.item_description,
+        wbs_code=payload.wbs_code,
         quantity=payload.quantity,
         unit=payload.unit,
         unit_rate=payload.unit_rate,
-        total_cost=total,
-        vendor_name=payload.vendor_name,
-        invoice_number=payload.invoice_number,
-        wbs_code=payload.wbs_code,
+        total_amount=total_cost,
+        supplier_name=payload.vendor_name,
+        invoice_no=payload.invoice_number or "UNSPECIFIED",
+        bill_attachment_url=payload.bill_photo_url,
+        logged_by_id=current_user.id,
+    )
+    db.add(db_entry)
+    db.commit()
+    db.refresh(db_entry)
+
+    return MaterialLogItem(
+        entry_id=db_entry.entry_id,
+        project_id=db_entry.project_id,
+        date=db_entry.date,
+        material_category=db_entry.material_category,
+        item_description=db_entry.item_description or "",
+        quantity=db_entry.quantity,
+        unit=db_entry.unit,
+        unit_rate=db_entry.unit_rate,
+        total_cost=db_entry.total_amount,
+        vendor_name=db_entry.supplier_name,
+        invoice_number=db_entry.invoice_no,
+        wbs_code=db_entry.wbs_code,
         bill_photo_name=payload.bill_photo_name,
-        bill_photo_url=payload.bill_photo_url,
+        bill_photo_url=db_entry.bill_attachment_url,
         is_unparsed_evidence=True,
     )
-    MATERIAL_LOG_STORE.append(entry)
-    return entry
+
+
+@router.post("/upload-bill")
+async def upload_bill_evidence(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_roles("store_keeper", "project_manager", "admin")),
+):
+    """
+    Stores an invoice receipt or weighbridge slip in object storage.
+    LOCKED RULE: Bill photos are stored as UNPARSED documentary evidence only.
+    """
+    content = await file.read()
+    file_url = storage.upload_bill_evidence(content, file.filename)
+    return {
+        "status": "STORED",
+        "file_name": file.filename,
+        "file_url": file_url,
+        "is_unparsed_evidence": True,
+        "message": "Bill receipt uploaded and stored as unparsed evidence.",
+    }
 
 
 @router.post("/classify-photo", response_model=PhotoClassificationResponse)
-async def classify_site_photo(file: UploadFile = File(...)):
+async def classify_site_photo(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_roles("site_engineer", "project_manager", "admin")),
+):
     """
-    Uploads a site progress photo and classifies it into STRUCTURAL_STAGE or FINISHING_STAGE.
-    LOCKED RULE: Binary classification only, not object detection. AI is not mandatory.
+    Classifies a site construction photo using edge density & surface planar analysis heuristics.
     """
     content = await file.read()
-    return SitePhotoClassifier.classify_image_bytes(content, file_name=file.filename or "site_photo.jpg")
+    try:
+        return SitePhotoClassifier.classify_image_bytes(content, file.filename)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Classification failed: {str(e)}",
+        )

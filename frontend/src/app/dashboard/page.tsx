@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import Link from "next/link"
 import {
   ResponsiveContainer,
   LineChart,
@@ -15,6 +16,8 @@ import {
 } from "recharts"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
+import { EmptyState } from "@/components/ui/EmptyState"
+import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
   PieChart as PieIcon,
@@ -29,6 +32,8 @@ import {
   AlertTriangle,
   ArrowRight,
   ShieldCheck,
+  Loader2,
+  Calendar,
 } from "lucide-react"
 
 interface CategoryMetric {
@@ -69,430 +74,433 @@ interface DashboardData {
   recalibrated_tasks: RecalibratedTask[]
 }
 
-const DEFAULT_DASHBOARD_DATA: DashboardData = {
-  project_name: "Tower-A Residential (G+14)",
-  total_planned_budget: 180000000, // ₹18.00 Cr
-  total_actual_spent: 34200000,    // ₹3.42 Cr
-  total_variance: 145800000,
-  is_over_budget: false,
-  budget_utilization_percent: 19.0,
-  categories: [
-    {
-      category_name: "Substructure & Earthwork",
-      planned_budget: 21600000,
-      actual_spent: 18900000,
-      variance: 2700000,
-      percentage_utilized: 87.5,
-    },
-    {
-      category_name: "RCC Superstructure Frame",
-      planned_budget: 68400000,
-      actual_spent: 12500000,
-      variance: 55900000,
-      percentage_utilized: 18.3,
-    },
-    {
-      category_name: "Masonry & Wet Finishes",
-      planned_budget: 32400000,
-      actual_spent: 2800000,
-      variance: 29600000,
-      percentage_utilized: 8.6,
-    },
-    {
-      category_name: "MEP Building Services",
-      planned_budget: 25200000,
-      actual_spent: 0,
-      variance: 25200000,
-      percentage_utilized: 0.0,
-    },
-    {
-      category_name: "Architectural Finishing",
-      planned_budget: 21600000,
-      actual_spent: 0,
-      variance: 21600000,
-      percentage_utilized: 0.0,
-    },
-    {
-      category_name: "External Development",
-      planned_budget: 10800000,
-      actual_spent: 0,
-      variance: 10800000,
-      percentage_utilized: 0.0,
-    },
-  ],
-  s_curve_data: [
-    { month: "M01", planned_monthly: 1200000, actual_monthly: 1350000, planned_cumulative: 1200000, actual_cumulative: 1350000 },
-    { month: "M02", planned_monthly: 1800000, actual_monthly: 1920000, planned_cumulative: 3000000, actual_cumulative: 3270000 },
-    { month: "M03", planned_monthly: 2200000, actual_monthly: 2150000, planned_cumulative: 5200000, actual_cumulative: 5420000 },
-    { month: "M04", planned_monthly: 2600000, actual_monthly: 0, planned_cumulative: 7800000, actual_cumulative: 5420000 },
-    { month: "M05", planned_monthly: 3100000, actual_monthly: 0, planned_cumulative: 10900000, actual_cumulative: 5420000 },
-    { month: "M06", planned_monthly: 3400000, actual_monthly: 0, planned_cumulative: 14300000, actual_cumulative: 5420000 },
-    { month: "M07", planned_monthly: 3200000, actual_monthly: 0, planned_cumulative: 17500000, actual_cumulative: 5420000 },
-    { month: "M08", planned_monthly: 2800000, actual_monthly: 0, planned_cumulative: 20300000, actual_cumulative: 5420000 },
-    { month: "M09", planned_monthly: 2400000, actual_monthly: 0, planned_cumulative: 22700000, actual_cumulative: 5420000 },
-    { month: "M10", planned_monthly: 1900000, actual_monthly: 0, planned_cumulative: 24600000, actual_cumulative: 5420000 },
-    { month: "M11", planned_monthly: 1400000, actual_monthly: 0, planned_cumulative: 26000000, actual_cumulative: 5420000 },
-    { month: "M12", planned_monthly: 1000000, actual_monthly: 0, planned_cumulative: 27000000, actual_cumulative: 5420000 },
-  ],
-  recalibration_available: true,
-  recalibrated_tasks: [
-    {
-      task_id: "T04",
-      task_name: "Podium Columns RCC Casting",
-      baseline_crash_slope: 12000,
-      recalibrated_crash_slope: 12489,
-      material_factor_applied: 1.0741,
-      change_percent: 4.08,
-    },
-    {
-      task_id: "T05",
-      task_name: "Tower Core Shear Walls (L1-L7)",
-      baseline_crash_slope: 15000,
-      recalibrated_crash_slope: 15642,
-      material_factor_applied: 1.0714,
-      change_percent: 4.28,
-    },
-    {
-      task_id: "T07",
-      task_name: "Tower Core Shear Walls (L8-L14)",
-      baseline_crash_slope: 22500,
-      recalibrated_crash_slope: 23334,
-      material_factor_applied: 1.0741,
-      change_percent: 3.71,
-    },
-    {
-      task_id: "T06",
-      task_name: "External Masonry Blockwork",
-      baseline_crash_slope: 8500,
-      recalibrated_crash_slope: 8783,
-      material_factor_applied: 1.0833,
-      change_percent: 3.33,
-    },
-  ],
-}
-
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData>(DEFAULT_DASHBOARD_DATA)
-  const [isRecalibrating, setIsRecalibrating] = useState(false)
-  const [recalibrationNotice, setRecalibrationNotice] = useState<string | null>(null)
+  const { user, token, activeProjectId, activeProject, hasPermission } = useAuth()
 
-  useEffect(() => {
-    fetch(getApiUrl("/api/v1/dashboard/budget-vs-actual"))
-      .then((res) => (res.ok ? res.json() : null))
-      .then((d) => {
-        if (d) setData(d)
-      })
-      .catch(() => {})
-  }, [])
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isRecalibrating, setIsRecalibrating] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleRecalibrate = async () => {
-    setIsRecalibrating(true)
+  const fetchDashboardData = async () => {
+    if (!activeProjectId || !token) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
     try {
-      const res = await fetch(getApiUrl("/api/v1/dashboard/recalibrate-crash-costs"), {
-        method: "POST",
-      }).catch(() => null)
-
-      if (res && res.ok) {
-        const payload = await res.json()
-        setData((prev) => ({
-          ...prev,
-          recalibrated_tasks: payload.recalibrated_tasks,
-        }))
-        setRecalibrationNotice(
-          "Crash costs recalibrated: Steel (+7.4%) and RMC (+7.1%) real invoice prices applied to critical path expediting slopes."
-        )
-      } else {
-        setRecalibrationNotice(
-          "Recalibrated using logged Tata Tiscon Rebar (₹58k/MT) and ACC RMC (₹4.5k/Cu.m) invoice prices."
-        )
+      const res = await fetch(
+        getApiUrl(`/api/v1/dashboard/budget-vs-actual?project_id=${activeProjectId}`),
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+      if (!res.ok) {
+        throw new Error("Failed to load dashboard metrics.")
       }
+      const data = await res.json()
+      setDashboardData(data)
+    } catch (err: any) {
+      setError(err.message || "Failed to load dashboard analytics.")
     } finally {
-      setTimeout(() => setIsRecalibrating(false), 500)
+      setIsLoading(false)
     }
   }
 
-  // Format Recharts currency tooltip
-  const formatTooltipCurrency = (val: any) => [formatINR(Number(val) || 0), "Cost"]
+  useEffect(() => {
+    fetchDashboardData()
+  }, [activeProjectId, token])
+
+  const handleRecalibrate = async () => {
+    if (!activeProjectId || !token) return
+    setIsRecalibrating(true)
+    try {
+      const res = await fetch(
+        getApiUrl(`/api/v1/dashboard/recalibrate-crash-costs?project_id=${activeProjectId}`),
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+      if (res.ok) {
+        await fetchDashboardData()
+      }
+    } catch (err) {
+      console.error("Recalibrate error:", err)
+    } finally {
+      setIsRecalibrating(false)
+    }
+  }
+
+  // Permission check
+  if (!hasPermission(["accountant", "owner", "admin", "project_manager"])) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <TopBar projectName="Budget vs Actual Dashboard" />
+        <main className="p-6">
+          <EmptyState
+            isPermissionDenied={true}
+            title="Finance / Executive Access Required"
+            description="Budget vs Actual financial analytics and delay risk exposure are restricted to Accountants, Owners, and Project Managers."
+            actionLabel="Return to Schedule"
+            actionHref="/"
+          />
+        </main>
+      </div>
+    )
+  }
+
+  if (!activeProjectId) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <TopBar projectName="Budget vs Actual Dashboard" />
+        <main className="p-6">
+          <EmptyState
+            title="No Active Project Selected"
+            description="Select an active project from the sidebar to inspect Budget vs Actual spend series, S-curves, and MahaRERA risk exposure."
+          />
+        </main>
+      </div>
+    )
+  }
+
+  const isOwner = user?.role === "owner"
+  const canRecalibrate = hasPermission(["accountant", "project_manager", "admin"])
+  const delayDays = activeProject?.delay_days || 0
+  const totalCost = activeProject?.total_project_cost || dashboardData?.total_planned_budget || 0
+  const estimatedEscrow = totalCost * 0.70
+  // MahaRERA annual rate: SBI MCLR 8.85% + 2% = 10.85%
+  const annualInterestRate = 0.1085
+  const dailyPenalty = (estimatedEscrow * annualInterestRate) / 365
+  const totalPenaltyExposure = dailyPenalty * delayDays
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar projectName="Budget vs Actual & Crash Cost Recalibration Dashboard" delayRiskDays={0} />
+      <TopBar
+        projectName={activeProject?.name ? `Financials: ${activeProject.name}` : "Budget vs Actual Analytics"}
+        delayRiskDays={delayDays}
+      />
 
       <main className="p-4 md:p-6 space-y-6">
-        {/* KPI Ribbons */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                Planned Project Budget
+        {/* Top Header */}
+        <div className="border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-heading font-semibold text-base text-foreground flex items-center gap-2">
+              <PieIcon className="w-4 h-4 text-primary" />
+              <span>
+                {isOwner ? "Owner Executive Risk & Cost Control Dashboard" : "Budget vs Actual Cost Analytics"}
               </span>
-              <Coins className="w-3.5 h-3.5 text-primary" />
-            </div>
-            <div className="mt-1 text-2xl font-mono font-bold text-foreground">
-              {formatINR(data.total_planned_budget)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              Parametric WBS sanctioned baseline
-            </div>
+            </h2>
+            <p className="text-xs font-mono text-muted-foreground mt-0.5">
+              Live S-Curve Spend Model • Rate Recalibration from Material Delivery Slips
+            </p>
           </div>
 
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                Actual Incurred Spend
-              </span>
-              <Activity className="w-3.5 h-3.5 text-primary" />
-            </div>
-            <div className="mt-1 text-2xl font-mono font-bold text-primary">
-              {formatINR(data.total_actual_spent)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              Material invoices + overheads
-            </div>
-          </div>
+          <div className="flex items-center gap-3">
+            {canRecalibrate && (
+              <button
+                type="button"
+                disabled={isRecalibrating}
+                onClick={handleRecalibrate}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-border text-foreground hover:bg-muted font-mono text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRecalibrating ? "animate-spin" : ""}`} />
+                <span>{isRecalibrating ? "RECALIBRATING..." : "RECALIBRATE FROM INVOICES"}</span>
+              </button>
+            )}
 
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                Remaining Budget
-              </span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
-            </div>
-            <div className="mt-1 text-2xl font-mono font-bold text-status-success">
-              {formatINR(data.total_variance)}
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              {100 - data.budget_utilization_percent}% unspent buffer
-            </div>
-          </div>
-
-          <div className="border border-border bg-card p-3">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-[10px] font-mono uppercase tracking-wider">
-                Budget Burn Rate
-              </span>
-              <TrendingUp className="w-3.5 h-3.5 text-foreground" />
-            </div>
-            <div className="mt-1 text-2xl font-mono font-bold text-foreground">
-              {data.budget_utilization_percent}%
-            </div>
-            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
-              Phase 1 Substructure in execution
-            </div>
-          </div>
-        </div>
-
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Cumulative Spend S-Curve (7 Cols) */}
-          <div className="lg:col-span-7 border border-border bg-card p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div>
-                <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
-                  CUMULATIVE EARNED VALUE S-CURVE (PLANNED VS ACTUAL)
-                </h3>
-                <p className="text-[11px] font-mono text-muted-foreground">
-                  Planned Value (PV) baseline curve vs Actual Incurred Cost (AC) in INR
-                </p>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 bg-secondary text-foreground border border-border">
-                12-MONTH HORIZON
-              </span>
-            </div>
-
-            <div className="h-64 w-full font-mono text-xs pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.s_curve_data} margin={{ top: 10, right: 20, left: 20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(28, 32, 36, 0.08)" />
-                  <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="#5C6470" />
-                  <YAxis
-                    tickFormatter={(val) => `₹${(val / 10000000).toFixed(1)}Cr`}
-                    tick={{ fontSize: 10 }}
-                    stroke="#5C6470"
-                  />
-                  <Tooltip formatter={formatTooltipCurrency} />
-                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-                  <Line
-                    type="monotone"
-                    dataKey="planned_cumulative"
-                    name="Planned Value (PV)"
-                    stroke="#5C6470"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    dot={{ r: 2 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="actual_cumulative"
-                    name="Actual Cost (AC)"
-                    stroke="#E8590C"
-                    strokeWidth={2.5}
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Package-wise Bar Chart (5 Cols) */}
-          <div className="lg:col-span-5 border border-border bg-card p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <div>
-                <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
-                  CIVIL PACKAGE EXPENDITURE BREAKDOWN
-                </h3>
-                <p className="text-[11px] font-mono text-muted-foreground">
-                  Planned budget vs logged material consignments
-                </p>
-              </div>
-            </div>
-
-            <div className="h-64 w-full font-mono text-xs pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.categories} margin={{ top: 10, right: 10, left: 10, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(28, 32, 36, 0.08)" />
-                  <XAxis
-                    dataKey="category_name"
-                    tick={{ fontSize: 9 }}
-                    angle={-20}
-                    textAnchor="end"
-                    stroke="#5C6470"
-                  />
-                  <YAxis
-                    tickFormatter={(val) => `₹${(val / 10000000).toFixed(1)}Cr`}
-                    tick={{ fontSize: 10 }}
-                    stroke="#5C6470"
-                  />
-                  <Tooltip formatter={formatTooltipCurrency} />
-                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "4px" }} />
-                  <Bar dataKey="planned_budget" name="Planned" fill="#7C8594" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="actual_spent" name="Actual Spent" fill="#E8590C" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Crash-Cost Recalibration Widget */}
-        <div className="border border-border bg-card">
-          <div className="p-3 border-b border-border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-primary" />
-                <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
-                  CRASH-COST RECALIBRATION ENGINE (FROM MATERIAL LOG DATA)
-                </h3>
-              </div>
-              <p className="text-[11px] font-mono text-muted-foreground">
-                Recalibrates critical path task crashing cost slopes (₹/day) using actual purchase invoices
-              </p>
-            </div>
-
-            <button
-              onClick={handleRecalibrate}
-              disabled={isRecalibrating}
-              className="text-xs font-mono font-medium bg-primary text-primary-foreground px-3.5 py-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50 border border-primary flex items-center gap-1.5 shrink-0"
+            <Link
+              href="/materials"
+              className="px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRecalibrating ? "animate-spin" : ""}`} />
-              <span>{isRecalibrating ? "RECALIBRATING..." : "RECALIBRATE FROM LOG"}</span>
-            </button>
+              View Material Logs
+            </Link>
           </div>
+        </div>
 
-          {recalibrationNotice && (
-            <div className="p-2.5 bg-secondary text-xs font-mono text-foreground border-b border-border flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-status-success shrink-0" />
-              <span>{recalibrationNotice}</span>
+        {error && (
+          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Owner / Executive Delay & Statutory Penalty Alert */}
+        {(isOwner || delayDays > 0) && (
+          <div className="border border-destructive/40 bg-destructive/5 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-destructive font-heading font-semibold text-xs tracking-wider uppercase">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Statutory MahaRERA Delay Exposure Alert</span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 bg-destructive/15 text-destructive border border-destructive/30">
+                RULE 18 ENFORCEMENT
+              </span>
             </div>
-          )}
-
-          <div className="overflow-x-auto p-0">
-            <table className="w-full text-left text-xs font-mono border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-[10px] text-muted-foreground uppercase">
-                  <th className="p-2.5 font-semibold">Activity ID</th>
-                  <th className="p-2.5 font-semibold">Task Description</th>
-                  <th className="p-2.5 font-semibold text-right">Baseline Slope (₹/d)</th>
-                  <th className="p-2.5 font-semibold text-right">Recalibrated Slope (₹/d)</th>
-                  <th className="p-2.5 font-semibold text-right">Material Variance Factor</th>
-                  <th className="p-2.5 font-semibold text-right">Slope Escalation</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {data.recalibrated_tasks.map((task) => (
-                  <tr key={task.task_id} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-2.5 font-bold text-foreground">{task.task_id}</td>
-                    <td className="p-2.5 font-sans font-medium text-foreground">{task.task_name}</td>
-                    <td className="p-2.5 text-right text-muted-foreground">
-                      {formatINR(task.baseline_crash_slope)}/d
-                    </td>
-                    <td className="p-2.5 text-right font-bold text-primary">
-                      {formatINR(task.recalibrated_crash_slope)}/d
-                    </td>
-                    <td className="p-2.5 text-right text-foreground">
-                      {task.material_factor_applied.toFixed(4)}x
-                    </td>
-                    <td className="p-2.5 text-right font-bold text-status-warning">
-                      +{task.change_percent}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <p className="text-xs font-sans text-muted-foreground leading-relaxed">
+              Section 18 mandates compensation at SBI MCLR + 2% (currently 10.85% p.a.) on buyer funds for every day of delay past contractual handover.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs font-mono">
+              <div className="p-2.5 bg-card border border-border">
+                <div className="text-[10px] text-muted-foreground uppercase">Project Delay</div>
+                <div className="text-base font-bold text-destructive">+{delayDays} Days</div>
+              </div>
+              <div className="p-2.5 bg-card border border-border">
+                <div className="text-[10px] text-muted-foreground uppercase">Statutory Daily Penalty</div>
+                <div className="text-base font-bold text-foreground">{formatINR(dailyPenalty)} / day</div>
+              </div>
+              <div className="p-2.5 bg-card border border-border">
+                <div className="text-[10px] text-muted-foreground uppercase">Cumulative Penalty Risk</div>
+                <div className="text-base font-bold text-destructive">{formatINR(totalPenaltyExposure)}</div>
+              </div>
+            </div>
+            <div className="pt-1 flex items-center justify-end">
+              <Link
+                href="/optimizer"
+                className="inline-flex items-center gap-1.5 text-xs font-mono text-primary hover:underline font-semibold"
+              >
+                <span>Run Penalty vs Crash Cost Optimization</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Detailed Package Budget Variance Table */}
-        <div className="border border-border bg-card">
-          <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between">
-            <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
-              PACKAGE VARIANCE & UTILIZATION REGISTER
-            </h3>
-            <span className="text-[11px] font-mono px-2 py-0.5 border border-border bg-background">
-              ALL CURRENCIES IN INR
-            </span>
+        {isLoading ? (
+          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <span>Loading Financial Analytics & S-Curve...</span>
           </div>
+        ) : !dashboardData || dashboardData.total_planned_budget === 0 ? (
+          <EmptyState
+            title="No Budget Data Available for this Project"
+            description="Generate the Parametric WBS first to establish planned budgets across packages and track real spend from material logs."
+            actionLabel="Generate Project WBS"
+            actionHref="/wbs"
+          />
+        ) : (
+          <>
+            {/* Primary Metrics Ribbon */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 border border-border bg-card">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Planned Budget
+                </div>
+                <div className="text-xl font-bold font-mono text-foreground mt-1">
+                  {formatINR(dashboardData.total_planned_budget)}
+                </div>
+                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                  WBS Parametric Baseline
+                </div>
+              </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-[10px] text-muted-foreground uppercase">
-                  <th className="p-2.5 font-semibold">Work Package</th>
-                  <th className="p-2.5 font-semibold text-right">Sanctioned Budget</th>
-                  <th className="p-2.5 font-semibold text-right">Actual Incurred</th>
-                  <th className="p-2.5 font-semibold text-right">Unspent Variance</th>
-                  <th className="p-2.5 font-semibold text-right">Utilization %</th>
-                  <th className="p-2.5 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {data.categories.map((cat) => (
-                  <tr key={cat.category_name} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-2.5 font-semibold text-foreground">{cat.category_name}</td>
-                    <td className="p-2.5 text-right text-muted-foreground">{formatINR(cat.planned_budget)}</td>
-                    <td className="p-2.5 text-right font-bold text-primary">{formatINR(cat.actual_spent)}</td>
-                    <td className="p-2.5 text-right text-status-success font-medium">{formatINR(cat.variance)}</td>
-                    <td className="p-2.5 text-right font-bold">{cat.percentage_utilized}%</td>
-                    <td className="p-2.5">
-                      {cat.percentage_utilized > 100 ? (
-                        <span className="text-[10px] font-mono text-destructive font-bold px-1.5 py-0.5 border border-destructive/30 bg-destructive/10">
-                          OVER BUDGET
-                        </span>
-                      ) : cat.actual_spent > 0 ? (
-                        <span className="text-[10px] font-mono text-primary font-bold px-1.5 py-0.5 border border-primary/30 bg-primary/10">
-                          ACTIVE EXECUTION
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-mono text-muted-foreground px-1.5 py-0.5 border border-border bg-muted/30">
-                          PENDING START
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              <div className="p-4 border border-border bg-card">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Actual Material Spent
+                </div>
+                <div className="text-xl font-bold font-mono text-primary mt-1">
+                  {formatINR(dashboardData.total_actual_spent)}
+                </div>
+                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                  From site delivery receipts
+                </div>
+              </div>
+
+              <div className="p-4 border border-border bg-card">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Budget Variance
+                </div>
+                <div
+                  className={`text-xl font-bold font-mono mt-1 ${
+                    dashboardData.total_variance >= 0 ? "text-status-success" : "text-destructive"
+                  }`}
+                >
+                  {formatINR(dashboardData.total_variance)}
+                </div>
+                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                  {dashboardData.total_variance >= 0 ? "Under allocated budget" : "Cost overrun alert"}
+                </div>
+              </div>
+
+              <div className="p-4 border border-border bg-card">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+                  Budget Utilization
+                </div>
+                <div className="text-xl font-bold font-mono text-foreground mt-1">
+                  {dashboardData.budget_utilization_percent}%
+                </div>
+                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                  Overall construction spend
+                </div>
+              </div>
+            </div>
+
+            {/* S-Curve Chart */}
+            <div className="border border-border bg-card p-5 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h3 className="font-heading font-semibold text-sm text-foreground">
+                    12-Month S-Curve Progress (Planned vs Actual Cumulative Spend)
+                  </h3>
+                  <p className="text-[11px] font-mono text-muted-foreground">
+                    Cumulative cashflow projection vs real site invoices
+                  </p>
+                </div>
+              </div>
+
+              <div className="h-64 sm:h-80 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dashboardData.s_curve_data}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "currentColor", fontSize: 10, fontFamily: "monospace" }}
+                    />
+                    <YAxis
+                      tickFormatter={(val) => `₹${(val / 10000000).toFixed(1)}Cr`}
+                      tick={{ fill: "currentColor", fontSize: 10, fontFamily: "monospace" }}
+                    />
+                    <Tooltip
+                      formatter={(val: any) => [formatINR(Number(val)), "Spend"]}
+                      contentStyle={{
+                        backgroundColor: "var(--card)",
+                        borderColor: "var(--border)",
+                        fontSize: "11px",
+                        fontFamily: "monospace",
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: "11px", fontFamily: "monospace" }} />
+                    <Line
+                      type="monotone"
+                      dataKey="planned_cumulative"
+                      name="Planned Cumulative Budget"
+                      stroke="#4F75FF"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="actual_cumulative"
+                      name="Actual Cumulative Spend"
+                      stroke="#22c55e"
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Package Breakdown Table */}
+            <div className="border border-border bg-card overflow-hidden">
+              <div className="p-3 bg-muted/30 border-b border-border flex items-center justify-between">
+                <span className="font-heading font-semibold text-xs text-foreground">
+                  Work Package Level Budget Allocation vs Actual Spent
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  6 MahaRERA Construction Packages
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-b border-border">
+                    <tr>
+                      <th className="py-2 px-3">Work Package</th>
+                      <th className="py-2 px-3">Planned Budget</th>
+                      <th className="py-2 px-3">Actual Spent</th>
+                      <th className="py-2 px-3">Variance</th>
+                      <th className="py-2 px-3">Utilization</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {dashboardData.categories.map((c, idx) => (
+                      <tr key={idx} className="hover:bg-muted/30">
+                        <td className="py-2.5 px-3 font-medium text-foreground">{c.category_name}</td>
+                        <td className="py-2.5 px-3">{formatINR(c.planned_budget)}</td>
+                        <td className="py-2.5 px-3 text-primary font-semibold">{formatINR(c.actual_spent)}</td>
+                        <td className="py-2.5 px-3 font-medium">
+                          <span className={c.variance >= 0 ? "text-status-success" : "text-destructive"}>
+                            {formatINR(c.variance)}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 bg-muted h-2 border border-border">
+                              <div
+                                className="bg-primary h-full"
+                                style={{ width: `${Math.min(100, c.percentage_utilized)}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-semibold">{c.percentage_utilized}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Recalibrated Critical Crash Slopes Section */}
+            {dashboardData.recalibrated_tasks.length > 0 && (
+              <div className="border border-border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-border pb-2">
+                  <div>
+                    <h3 className="font-heading font-semibold text-xs text-foreground flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-primary" />
+                      <span>Recalibrated Critical Activity Crash Costs (Site Invoice Feedback)</span>
+                    </h3>
+                    <p className="text-[11px] font-mono text-muted-foreground">
+                      Crash-cost slopes adjusted dynamically using actual site purchase invoices.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-b border-border">
+                      <tr>
+                        <th className="py-2 px-3">Activity ID</th>
+                        <th className="py-2 px-3">Task Title</th>
+                        <th className="py-2 px-3">Baseline Slope (₹/day)</th>
+                        <th className="py-2 px-3">Recalibrated Slope (₹/day)</th>
+                        <th className="py-2 px-3">Material Factor</th>
+                        <th className="py-2 px-3">Slope Variance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {dashboardData.recalibrated_tasks.map((task) => (
+                        <tr key={task.task_id} className="hover:bg-muted/30">
+                          <td className="py-2 px-3 font-semibold text-primary">{task.task_id}</td>
+                          <td className="py-2 px-3 text-foreground font-sans">{task.task_name}</td>
+                          <td className="py-2 px-3 text-muted-foreground">₹{task.baseline_crash_slope.toLocaleString()}</td>
+                          <td className="py-2 px-3 font-semibold text-foreground">
+                            ₹{task.recalibrated_crash_slope.toLocaleString()}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground">{task.material_factor_applied}x</td>
+                          <td className="py-2 px-3">
+                            <span
+                              className={
+                                task.change_percent > 0
+                                  ? "text-status-warning font-semibold"
+                                  : "text-status-success font-semibold"
+                              }
+                            >
+                              {task.change_percent > 0 ? `+${task.change_percent}%` : `${task.change_percent}%`}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   )

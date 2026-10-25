@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 function getBackendBaseUrl(): string {
-  // 1. Service binding injected by Vercel Services at runtime
-  if (process.env.BACKEND_URL) {
-    return process.env.BACKEND_URL.replace(/\/$/, "");
-  }
-  // 2. Explicit environment variable if configured
+  // 1. Explicit environment variable pointing to container backend (Render / VPS)
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
   }
-  // 3. Fallback for local development
+  // 2. Fallback for local development
   return "http://localhost:8000";
 }
 

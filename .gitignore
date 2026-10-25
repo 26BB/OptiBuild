@@ -28,6 +28,10 @@ dist/
 .env.*.local
 !.env.example
 
+# Local Uploads fallback
+backend/uploads/
+uploads/
+
 # OS / IDE
 .DS_Store
 Thumbs.db
