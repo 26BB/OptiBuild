@@ -2,6 +2,13 @@ import os
 from pathlib import Path
 from typing import Optional
 import boto3
+from dotenv import load_dotenv
+
+env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 

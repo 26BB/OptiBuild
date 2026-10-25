@@ -1,5 +1,14 @@
 import os
+from pathlib import Path
 from typing import List
+from dotenv import load_dotenv
+
+# Automatically load .env from project root or working directory
+env_path = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 
 
 class Settings:
