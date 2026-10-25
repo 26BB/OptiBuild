@@ -29,6 +29,12 @@ DEMO_USERS = [
         "role": "site_engineer",
     },
     {
+        "email": "site@optibuild.io",
+        "password": "Site@123",
+        "full_name": "Amit Patil (Site Engineer)",
+        "role": "site_engineer",
+    },
+    {
         "email": "store@optibuild.io",
         "password": "Store@123",
         "full_name": "Suresh Deshmukh (Store Keeper)",

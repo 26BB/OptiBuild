@@ -32,6 +32,11 @@ def login_for_access_token(
     """
     email_clean = payload.email.strip().lower()
     user = db.query(User).filter(User.email == email_clean).first()
+    # Support email aliases for demo convenience
+    if not user and email_clean == "site@optibuild.io":
+        user = db.query(User).filter(User.email == "engineer@optibuild.io").first()
+    elif not user and email_clean == "engineer@optibuild.io":
+        user = db.query(User).filter(User.email == "site@optibuild.io").first()
 
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
