@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for OCR fallback and compilation
+# Install system dependencies for OCR fallback, PostgreSQL driver compilation, and curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     tesseract-ocr \
@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements from repository root context and install dependencies
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy source code into backend package directory
-COPY . ./backend
+# Copy backend application and shared scripts from repository root context
+COPY backend/ /app/backend/
+COPY scripts/ /app/scripts/
 
 ENV PYTHONPATH=/app
 ENV PORT=8000
