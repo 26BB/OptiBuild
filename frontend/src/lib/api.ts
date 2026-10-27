@@ -14,8 +14,9 @@ export function getApiUrl(path: string): string {
     return cleanPath;
   }
 
-  // Server-side execution in Next.js: use NEXT_PUBLIC_API_URL
+  // Server-side execution in Next.js: check BACKEND_URL (e.g. for Docker network) then NEXT_PUBLIC_API_URL
   const backendBase =
+    process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     "http://localhost:8000";
 

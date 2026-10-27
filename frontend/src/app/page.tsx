@@ -7,6 +7,7 @@ import { TopBar } from "@/components/layout/TopBar"
 import { GanttSchedule, ScheduleTask } from "@/components/schedule/GanttSchedule"
 import { RecoverySidePanel } from "@/components/optimizer/RecoverySidePanel"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { SiteWeatherWidget } from "@/components/weather/SiteWeatherWidget"
 import { useAuth } from "@/context/AuthContext"
 import {
   Calendar,
@@ -228,6 +229,9 @@ export default function HomePage() {
           />
         ) : (
           <>
+            {/* Site Meteorology & Rain Delay Guard Widget */}
+            <SiteWeatherWidget tasks={tasks} projectCity="Pune" />
+
             {/* Metric Ribbons */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="border border-border bg-card p-3">
