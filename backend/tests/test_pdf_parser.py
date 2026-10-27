@@ -82,3 +82,65 @@ def test_confirm_rera_draft_endpoint():
     assert data["status"] == "CONFIRMED"
     assert data["project_name"] == "Emerald Heights Phase 1 (Confirmed)"
     assert data["confirmed_data"]["number_of_floors"] == 15
+
+
+from unittest.mock import MagicMock, patch
+
+
+def test_parse_text_pdf_prefills_only():
+    """Text PDF extracts fields accurately; strictly PRE-FILLS form without saving to DB."""
+    with patch("pdfplumber.open") as mock_plumber:
+        mock_pdf = MagicMock()
+        mock_page = MagicMock()
+        mock_page.extract_text.return_value = SAMPLE_RERA_TEXT
+        mock_pdf.pages = [mock_page]
+        mock_plumber.return_value.__enter__.return_value = mock_pdf
+
+        draft = MahaRERAPDFParser.parse_pdf_bytes(b"%PDF-1.4 sample valid text pdf content")
+        assert draft.rera_registration_no == "P52100018921"
+        assert draft.project_name == "Emerald Heights Phase 1"
+        assert draft.requires_user_confirmation is True
+        assert draft.is_confirmed is False
+
+
+def test_parse_scanned_pdf_triggers_ocr_fallback():
+    """When pdfplumber returns almost no text, OCR fallback renders pages and parses text."""
+    with patch("pdfplumber.open") as mock_plumber:
+        mock_pdf = MagicMock()
+        mock_page = MagicMock()
+        mock_page.extract_text.return_value = ""  # Scanned image with no text layer
+        mock_pdf.pages = [mock_page]
+        mock_plumber.return_value.__enter__.return_value = mock_pdf
+
+        with patch.object(MahaRERAPDFParser, "_run_ocr_fallback", return_value=SAMPLE_RERA_TEXT) as mock_ocr:
+            draft = MahaRERAPDFParser.parse_pdf_bytes(b"%PDF-1.4 scanned image pdf bytes")
+            mock_ocr.assert_called_once()
+            assert draft.rera_registration_no == "P52100018921"
+            assert draft.requires_user_confirmation is True
+            assert draft.is_confirmed is False
+
+    # When OCR also fails, returns empty draft with NOT_FOUND confidence without crashing
+    with patch("pdfplumber.open") as mock_plumber:
+        mock_pdf = MagicMock()
+        mock_page = MagicMock()
+        mock_page.extract_text.return_value = ""
+        mock_pdf.pages = [mock_page]
+        mock_plumber.return_value.__enter__.return_value = mock_pdf
+
+        with patch.object(MahaRERAPDFParser, "_run_ocr_fallback", return_value=""):
+            draft = MahaRERAPDFParser.parse_pdf_bytes(b"%PDF-1.4 scanned image unreadable")
+            assert draft.confidence_scores.get("all") == "NOT_FOUND"
+            assert draft.project_name is None
+            assert draft.requires_user_confirmation is True
+            assert draft.is_confirmed is False
+
+
+def test_parse_corrupt_file_never_crashes():
+    """Corrupt or malformed bytes never crash the parser; returns empty draft with NOT_FOUND."""
+    corrupt_bytes = b"CORRUPTED_GARBAGE_BYTES_#$!@#%NOT_A_VALID_PDF_STRUCTURE"
+    draft = MahaRERAPDFParser.parse_pdf_bytes(corrupt_bytes)
+    assert draft is not None
+    assert draft.confidence_scores.get("all") == "NOT_FOUND"
+    assert draft.project_name is None
+    assert draft.requires_user_confirmation is True
+    assert draft.is_confirmed is False

@@ -15,37 +15,96 @@ class MahaRERAPDFParser:
     """
 
     @classmethod
+    def _run_ocr_fallback(cls, pdf_bytes: bytes) -> str:
+        """
+        Renders PDF pages to images using pypdfium2 and runs pytesseract OCR.
+        OCR libraries are imported lazily inside this method to conserve memory on 512 MB RAM environments.
+        """
+        try:
+            import pypdfium2 as pdfium
+            import pytesseract
+
+            pdf = pdfium.PdfDocument(pdf_bytes)
+            ocr_text_parts = []
+            max_pages = min(len(pdf), 3)
+            for i in range(max_pages):
+                page = pdf[i]
+                bitmap = page.render(scale=1.5)
+                pil_image = bitmap.to_pil()
+                text = pytesseract.image_to_string(pil_image)
+                if text:
+                    ocr_text_parts.append(text)
+            return "\n".join(ocr_text_parts).strip()
+        except Exception:
+            return ""
+
+    @classmethod
     def parse_pdf_bytes(cls, pdf_bytes: bytes) -> MahaRERAPreFillDraft:
         extracted_text = ""
 
-        # 1. Primary extractor: pdfplumber
         try:
-            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-                pages_text = [page.extract_text() or "" for page in pdf.pages]
-                extracted_text = "\n".join(pages_text).strip()
-        except Exception:
-            extracted_text = ""
-
-        # 2. Fallback extractor: pypdf
-        if not extracted_text:
+            # 1. Primary extractor: pdfplumber
             try:
-                reader = PdfReader(io.BytesIO(pdf_bytes))
-                pages_text = [p.extract_text() or "" for p in reader.pages]
-                extracted_text = "\n".join(pages_text).strip()
+                with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                    pages_text = [page.extract_text() or "" for page in pdf.pages]
+                    extracted_text = "\n".join(pages_text).strip()
             except Exception:
                 extracted_text = ""
 
-        if not extracted_text:
+            # 2. Fallback text extractor: pypdf if almost no text returned
+            if len(extracted_text) < 30:
+                try:
+                    reader = PdfReader(io.BytesIO(pdf_bytes))
+                    pages_text = [p.extract_text() or "" for p in reader.pages]
+                    pypdf_text = "\n".join(pages_text).strip()
+                    if len(pypdf_text) > len(extracted_text):
+                        extracted_text = pypdf_text
+                except Exception:
+                    pass
+
+            # 3. OCR Fallback: if pdfplumber/pypdf return almost no text (e.g. scanned document)
+            if len(extracted_text) < 30:
+                ocr_text = cls._run_ocr_fallback(pdf_bytes)
+                if len(ocr_text) > len(extracted_text):
+                    extracted_text = ocr_text
+
+            if not extracted_text or len(extracted_text.strip()) < 10:
+                return MahaRERAPreFillDraft(
+                    project_name=None,
+                    rera_registration_no=None,
+                    promoter_name=None,
+                    proposed_completion_date=None,
+                    plot_area_sqft=None,
+                    built_up_area_sqft=None,
+                    carpet_area_sqft=None,
+                    number_of_floors=None,
+                    number_of_basements=None,
+                    total_project_cost=None,
+                    confidence_scores={"all": "NOT_FOUND"},
+                    raw_text_snippet="Could not extract machine-readable text from uploaded PDF. Please fill the form manually.",
+                    requires_user_confirmation=True,
+                    is_confirmed=False,
+                )
+
+            return cls.extract_from_text(extracted_text)
+        except Exception as e:
+            # If parsing completely fails (e.g. corrupt file), return empty draft with NOT_FOUND. Never crash.
             return MahaRERAPreFillDraft(
                 project_name=None,
                 rera_registration_no=None,
+                promoter_name=None,
+                proposed_completion_date=None,
+                plot_area_sqft=None,
+                built_up_area_sqft=None,
+                carpet_area_sqft=None,
+                number_of_floors=None,
+                number_of_basements=None,
+                total_project_cost=None,
                 confidence_scores={"all": "NOT_FOUND"},
-                raw_text_snippet="Could not extract machine-readable text from uploaded PDF.",
+                raw_text_snippet=f"Parsing error: {str(e)}. Please fill the form manually.",
                 requires_user_confirmation=True,
                 is_confirmed=False,
             )
-
-        return cls.extract_from_text(extracted_text)
 
     @classmethod
     def extract_from_text(cls, text: str) -> MahaRERAPreFillDraft:
