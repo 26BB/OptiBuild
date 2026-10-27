@@ -42,10 +42,26 @@ def test_task_crash_slope_recalibration():
         assert item.change_percent >= 0.0
 
 
+def _get_or_create_dash_project():
+    from backend.app.db.session import SessionLocal
+    from backend.app.db.models import Project
+    db = SessionLocal()
+    try:
+        p = db.query(Project).filter(Project.id == "dash-test-proj").first()
+        if not p:
+            p = Project(id="dash-test-proj", name="Dashboard Test Project", total_project_cost=180000000.0)
+            db.add(p)
+            db.commit()
+        return "dash-test-proj"
+    finally:
+        db.close()
+
+
 def test_dashboard_api_endpoints():
     """Verifies GET budget-vs-actual and POST recalibrate-crash-costs."""
+    proj_id = _get_or_create_dash_project()
     # 1. Dashboard summary
-    resp_dash = client.get("/api/v1/dashboard/budget-vs-actual")
+    resp_dash = client.get(f"/api/v1/dashboard/budget-vs-actual?project_id={proj_id}")
     assert resp_dash.status_code == 200
     data_dash = resp_dash.json()
     assert data_dash["total_planned_budget"] > 0
@@ -53,7 +69,7 @@ def test_dashboard_api_endpoints():
     assert len(data_dash["s_curve_data"]) == 12
 
     # 2. Recalibrate endpoint
-    resp_recal = client.post("/api/v1/dashboard/recalibrate-crash-costs")
+    resp_recal = client.post(f"/api/v1/dashboard/recalibrate-crash-costs?project_id={proj_id}")
     assert resp_recal.status_code == 200
     data_recal = resp_recal.json()
     assert data_recal["status"] == "RECALIBRATED"

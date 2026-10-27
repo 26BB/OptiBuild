@@ -51,9 +51,26 @@ def test_classifier_finishing_stage():
     assert res.confidence_score >= 0.70
 
 
+def _get_or_create_test_project():
+    from backend.app.db.session import SessionLocal
+    from backend.app.db.models import Project
+    db = SessionLocal()
+    try:
+        p = db.query(Project).filter(Project.id == "mat-test-proj").first()
+        if not p:
+            p = Project(id="mat-test-proj", name="Materials Test Project")
+            db.add(p)
+            db.commit()
+        return "mat-test-proj"
+    finally:
+        db.close()
+
+
 def test_material_log_expenditure_and_evidence_rule():
     """Validates quantity * rate math and verifies bill photos are stored as unparsed evidence only."""
+    proj_id = _get_or_create_test_project()
     payload = {
+        "project_id": proj_id,
         "date": "2026-10-14",
         "material_category": "Cement",
         "item_description": "PPC Cement for Plastering",
@@ -78,7 +95,8 @@ def test_material_log_expenditure_and_evidence_rule():
 
 def test_material_log_get_summary():
     """Verifies GET /api/v1/materials/log returns entries and accurate summary."""
-    resp = client.get("/api/v1/materials/log")
+    proj_id = _get_or_create_test_project()
+    resp = client.get(f"/api/v1/materials/log?project_id={proj_id}")
     assert resp.status_code == 200
     summary = resp.json()
 

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
-from backend.app.db.models import User, ProjectMember
+from backend.app.db.models import User, ProjectMember, Project
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -142,28 +142,70 @@ def check_project_membership(
     user: User,
     db: Session,
     allowed_roles: Optional[List[str]] = None,
+    project: Optional[Project] = None,
 ) -> bool:
     """
     Verifies if user has permission to access a project.
-    - System 'admin' always has access.
-    - System role match is accepted if user has system-wide permissions (e.g. project_manager).
-    - Checks project_members table for project-specific assigned roles.
+    - System 'admin' always has universal access.
+    - Non-admin user must be project creator or have a ProjectMember record for this project.
+    - If allowed_roles is specified, the user's project role (or creator role) must be in allowed_roles.
     """
     if user.role == "admin":
         return True
 
-    # If allowed_roles specified, check if user's system role is permitted
-    if allowed_roles and user.role in allowed_roles:
-        return True
+    if project is None:
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            return False
 
-    # Check project-specific assignment
+    is_creator = (project.created_by_id == user.id)
     membership = (
         db.query(ProjectMember)
         .filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user.id)
         .first()
     )
-    if membership:
-        if not allowed_roles or membership.role in allowed_roles:
-            return True
 
-    return False
+    if not is_creator and not membership:
+        return False
+
+    effective_role = membership.role if membership else user.role
+
+    if allowed_roles is not None:
+        if effective_role not in allowed_roles:
+            return False
+
+    return True
+
+
+def verify_project_membership(
+    project_id: str,
+    user: User,
+    db: Session,
+    allowed_roles: Optional[List[str]] = None,
+) -> Project:
+    """
+    Verifies that the user has permission to access the specified project.
+    Raises HTTPException 403 if user is not a member or lacks the allowed role.
+    Raises HTTPException 404 if project does not exist.
+    Returns the Project instance.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if user.role != "admin" and not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. You are not a member of this project.",
+        )
+
+    if not check_project_membership(project_id, user, db, allowed_roles=allowed_roles, project=project):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. You are not an authorized member of this project or lack the required role.",
+        )
+
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found.",
+        )
+
+    return project

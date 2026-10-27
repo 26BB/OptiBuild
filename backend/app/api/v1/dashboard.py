@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.schemas.dashboard import DashboardResponse
 from backend.app.engine.recalibrate import CrashCostRecalibrator
-from backend.app.core.auth import get_current_user, require_roles
+from backend.app.core.auth import get_current_user, require_roles, verify_project_membership
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Project, MaterialLogModel, TaskModel
 
@@ -13,29 +13,21 @@ router = APIRouter(prefix="/dashboard", tags=["Budget vs Actual Analytics"])
 
 @router.get("/budget-vs-actual", response_model=DashboardResponse)
 def get_budget_vs_actual_dashboard(
-    project_id: Optional[str] = Query(None, description="Project ID to evaluate Budget vs Actual"),
-    current_user: User = Depends(require_roles("accountant", "owner", "admin", "project_manager")),
+    project_id: str = Query(..., description="Project ID to evaluate Budget vs Actual"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Returns comprehensive Budget vs Actual metrics, cumulative S-Curve spend series,
     package-level cost variance, and recalibrated crash costs based on real database records.
+    Requires project_id and verified project membership for accountant, owner, admin, or project_manager.
     """
-    project: Optional[Project] = None
-    if project_id:
-        project = db.query(Project).filter(Project.id == project_id).first()
-    else:
-        project = db.query(Project).order_by(Project.created_at.desc()).first()
-
-    if not project:
-        # Return empty state if no projects exist in the database
-        return CrashCostRecalibrator.get_dashboard_metrics(
-            project_name="No Active Project",
-            total_planned=0.0,
-            wbs_categories=[],
-            material_logs=[],
-            tasks=[],
-        )
+    project = verify_project_membership(
+        project_id,
+        current_user,
+        db,
+        allowed_roles=["accountant", "owner", "admin", "project_manager"],
+    )
 
     # Fetch materials and tasks for project
     material_logs = (
@@ -85,38 +77,37 @@ def get_budget_vs_actual_dashboard(
 
 @router.post("/recalibrate-crash-costs")
 def trigger_crash_cost_recalibration(
-    project_id: Optional[str] = Query(None),
-    current_user: User = Depends(require_roles("accountant", "project_manager", "admin")),
+    project_id: str = Query(..., description="Project ID to recalibrate crash costs"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Recalibrates critical path task crash-cost slopes based on latest material log unit rates.
+    Requires project_id and verified project membership for accountant, project_manager, or admin.
     """
-    project: Optional[Project] = None
-    if project_id:
-        project = db.query(Project).filter(Project.id == project_id).first()
-    else:
-        project = db.query(Project).order_by(Project.created_at.desc()).first()
+    project = verify_project_membership(
+        project_id,
+        current_user,
+        db,
+        allowed_roles=["accountant", "project_manager", "admin"],
+    )
 
-    material_logs = []
-    tasks = []
-    if project:
-        material_logs = [
-            {"material_category": m.material_category, "unit_rate": m.unit_rate}
-            for m in db.query(MaterialLogModel).filter(MaterialLogModel.project_id == project.id).all()
-        ]
-        tasks = [
-            {
-                "id": t.id,
-                "name": t.name,
-                "duration": t.duration,
-                "crash_duration": t.crash_duration,
-                "normal_cost": t.normal_cost,
-                "crash_cost": t.crash_cost,
-                "is_critical": t.is_critical,
-            }
-            for t in db.query(TaskModel).filter(TaskModel.project_id == project.id).all()
-        ]
+    material_logs = [
+        {"material_category": m.material_category, "unit_rate": m.unit_rate}
+        for m in db.query(MaterialLogModel).filter(MaterialLogModel.project_id == project.id).all()
+    ]
+    tasks = [
+        {
+            "id": t.id,
+            "name": t.name,
+            "duration": t.duration,
+            "crash_duration": t.crash_duration,
+            "normal_cost": t.normal_cost,
+            "crash_cost": t.crash_cost,
+            "is_critical": t.is_critical,
+        }
+        for t in db.query(TaskModel).filter(TaskModel.project_id == project.id).all()
+    ]
 
     recalibrated = CrashCostRecalibrator.recalibrate_tasks(
         tasks=tasks if tasks else None,

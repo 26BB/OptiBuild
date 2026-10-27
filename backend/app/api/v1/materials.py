@@ -1,7 +1,7 @@
 import uuid
 from collections import defaultdict
 from typing import Dict, List, Optional
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Query, status
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from backend.app.schemas.materials import (
@@ -10,7 +10,12 @@ from backend.app.schemas.materials import (
     MaterialLogSummary,
     PhotoClassificationResponse,
 )
-from backend.app.core.auth import get_current_user, require_roles
+from backend.app.core.auth import (
+    get_current_user,
+    require_roles,
+    check_project_membership,
+    verify_project_membership,
+)
 from backend.app.db.session import get_db
 from backend.app.db.models import User, MaterialLogModel, Project
 from backend.app.storage.s3 import storage
@@ -21,18 +26,18 @@ router = APIRouter(prefix="/materials", tags=["Material Log & Site Photo Classif
 
 @router.get("/log", response_model=MaterialLogSummary)
 def get_material_log(
-    project_id: Optional[str] = Query(None, description="Optional project ID to filter materials"),
-    current_user: Optional[User] = Depends(get_current_user),
+    project_id: str = Query(..., description="Project ID to filter materials"),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Returns real logged material entries from the database, category totals,
-    and grand total expenditure for the selected project (or all projects).
+    and grand total expenditure for the selected project.
+    Requires project_id and verified project membership.
     """
-    query = db.query(MaterialLogModel)
-    if project_id:
-        query = query.filter(MaterialLogModel.project_id == project_id)
+    verify_project_membership(project_id, current_user, db)
 
+    query = db.query(MaterialLogModel).filter(MaterialLogModel.project_id == project_id)
     db_entries = query.order_by(MaterialLogModel.date.desc(), MaterialLogModel.created_at.desc()).all()
 
     category_totals: Dict[str, float] = defaultdict(float)
@@ -74,13 +79,26 @@ def get_material_log(
 @router.post("/log", response_model=MaterialLogItem)
 def create_material_entry(
     payload: CreateMaterialLogRequest,
-    current_user: User = Depends(require_roles("store_keeper", "project_manager", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Creates a new material receipt record in the database.
-    Permitted for Store Keepers, Project Managers, and Admins.
+    Requires project_id and permitted for Store Keepers, Project Managers, and Admins.
     """
+    if not payload.project_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="project_id is required to log materials.",
+        )
+
+    verify_project_membership(
+        payload.project_id,
+        current_user,
+        db,
+        allowed_roles=["store_keeper", "project_manager", "admin"],
+    )
+
     # Count existing entries to format entry_id MAT-XXX
     count = db.query(MaterialLogModel).count()
     entry_id = f"MAT-{count + 1:04d}"
@@ -129,12 +147,27 @@ def create_material_entry(
 @router.post("/upload-bill")
 async def upload_bill_evidence(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_roles("store_keeper", "project_manager", "admin")),
+    project_id: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Stores an invoice receipt or weighbridge slip in object storage.
     LOCKED RULE: Bill photos are stored as UNPARSED documentary evidence only.
     """
+    if project_id:
+        verify_project_membership(
+            project_id,
+            current_user,
+            db,
+            allowed_roles=["store_keeper", "project_manager", "admin"],
+        )
+    elif current_user.role not in ["store_keeper", "project_manager", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Requires store_keeper, project_manager, or admin role.",
+        )
+
     content = await file.read()
     file_url = storage.upload_bill_evidence(content, file.filename)
     return {
@@ -149,11 +182,26 @@ async def upload_bill_evidence(
 @router.post("/classify-photo", response_model=PhotoClassificationResponse)
 async def classify_site_photo(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_roles("site_engineer", "project_manager", "admin")),
+    project_id: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Classifies a site construction photo using edge density & surface planar analysis heuristics.
     """
+    if project_id:
+        verify_project_membership(
+            project_id,
+            current_user,
+            db,
+            allowed_roles=["site_engineer", "project_manager", "admin"],
+        )
+    elif current_user.role not in ["site_engineer", "project_manager", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Requires site_engineer, project_manager, or admin role.",
+        )
+
     content = await file.read()
     try:
         return SitePhotoClassifier.classify_image_bytes(content, file.filename)

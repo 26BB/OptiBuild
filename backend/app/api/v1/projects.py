@@ -4,7 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.core.auth import get_current_user, require_roles
+from backend.app.core.auth import (
+    get_current_user,
+    require_roles,
+    check_project_membership,
+    verify_project_membership,
+)
 from backend.app.db.session import get_db
 from backend.app.db.models import (
     User,
@@ -70,8 +75,6 @@ def list_projects(
             .order_by(Project.created_at.desc())
             .all()
         )
-        if not projects:
-            projects = db.query(Project).order_by(Project.created_at.desc()).all()
 
     return [
         {
@@ -104,9 +107,7 @@ def get_project_detail(
     Returns complete project details, including WBS, Schedule, Optimizer results,
     tasks, drawings, and team members.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(project_id, current_user, db)
 
     tasks = db.query(TaskModel).filter(TaskModel.project_id == project_id).all()
     drawings = db.query(ProjectDrawing).filter(ProjectDrawing.project_id == project_id).all()
@@ -193,15 +194,15 @@ def get_project_detail(
 def assign_project_member(
     project_id: str,
     payload: AssignMemberRequest,
-    current_user: User = Depends(require_roles("admin", "project_manager")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Assigns a user to a project with a specific project role.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(
+        project_id, current_user, db, allowed_roles=["admin", "project_manager"]
+    )
 
     user = db.query(User).filter(User.id == payload.user_id).first()
     if not user:
@@ -231,16 +232,16 @@ def assign_project_member(
 def generate_and_save_wbs(
     project_id: str,
     payload: BuildingParametersInput,
-    current_user: User = Depends(require_roles("project_manager", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Generates a parametric WBS from building parameters and saves it to the project.
     Creates or updates the tasks in the database.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(
+        project_id, current_user, db, allowed_roles=["project_manager", "admin"]
+    )
 
     # Generate WBS
     wbs_result = WBSGenerator.generate(payload)
@@ -292,15 +293,15 @@ def generate_and_save_wbs(
 def run_and_save_schedule(
     project_id: str,
     payload: RunSchedulePayload,
-    current_user: User = Depends(require_roles("project_manager", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Runs CPM and Genetic Algorithm RCPSP for the project tasks and saves results.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(
+        project_id, current_user, db, allowed_roles=["project_manager", "admin"]
+    )
 
     db_tasks = db.query(TaskModel).filter(TaskModel.project_id == project_id).all()
     if not db_tasks:
@@ -362,16 +363,16 @@ def run_and_save_schedule(
 def run_and_save_optimizer(
     project_id: str,
     target_recovery_days: Optional[int] = None,
-    current_user: User = Depends(require_roles("project_manager", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Evaluates statutory MahaRERA delay penalties against schedule crashing costs.
     Stores the evaluation record into the database.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(
+        project_id, current_user, db, allowed_roles=["project_manager", "admin"]
+    )
 
     db_tasks = db.query(TaskModel).filter(TaskModel.project_id == project_id).all()
     if not db_tasks:
@@ -428,15 +429,15 @@ def run_and_save_optimizer(
 @router.post("/{project_id}/benchmark")
 def run_and_save_benchmark(
     project_id: str,
-    current_user: User = Depends(require_roles("project_manager", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Runs OR-Tools CP-SAT and GA benchmark on the project's real network.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(
+        project_id, current_user, db, allowed_roles=["project_manager", "admin"]
+    )
 
     db_tasks = db.query(TaskModel).filter(TaskModel.project_id == project_id).all()
     if not db_tasks:
@@ -474,13 +475,16 @@ def update_task_progress(
     project_id: str,
     task_id: str,
     payload: UpdateTaskProgressRequest,
-    current_user: User = Depends(require_roles("site_engineer", "project_manager", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Updates progress percentage and completion status for a site activity.
     Permitted for Site Engineers, PMs, and Admins.
     """
+    verify_project_membership(
+        project_id, current_user, db, allowed_roles=["site_engineer", "project_manager", "admin"]
+    )
     task = (
         db.query(TaskModel)
         .filter(TaskModel.project_id == project_id, TaskModel.id == task_id)
@@ -522,6 +526,7 @@ def list_project_drawings(
     """
     Lists all architectural and engineering drawings attached to this project.
     """
+    verify_project_membership(project_id, current_user, db)
     drawings = db.query(ProjectDrawing).filter(ProjectDrawing.project_id == project_id).all()
     return [
         {
@@ -543,16 +548,16 @@ async def upload_architect_drawing(
     title: str = Form(...),
     drawing_type: str = Form("ARCHITECTURAL"),
     file: UploadFile = File(...),
-    current_user: User = Depends(require_roles("architect", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Attaches an architectural drawing to the project.
     LOCKED RULE: Architect drawing files are stored for human viewing ONLY and are NEVER parsed.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(
+        project_id, current_user, db, allowed_roles=["architect", "admin"]
+    )
 
     content = await file.read()
     file_url = storage.upload_architect_drawing(content, file.filename)
@@ -588,6 +593,7 @@ def list_site_photos(
     """
     Lists all site photos uploaded and classified for this project.
     """
+    verify_project_membership(project_id, current_user, db)
     photos = db.query(SitePhotoModel).filter(SitePhotoModel.project_id == project_id).all()
     return [
         {
@@ -611,15 +617,15 @@ async def upload_site_photo(
     notes: Optional[str] = Form(None),
     engineer_confirmed_stage: Optional[str] = Form(None),
     file: UploadFile = File(...),
-    current_user: User = Depends(require_roles("site_engineer", "project_manager", "admin")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Uploads a site photo, runs classifier heuristics, and stores record in database.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found.")
+    project = verify_project_membership(
+        project_id, current_user, db, allowed_roles=["site_engineer", "project_manager", "admin"]
+    )
 
     content = await file.read()
     photo_url = storage.upload_site_photo(content, file.filename)

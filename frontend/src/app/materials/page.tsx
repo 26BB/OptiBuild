@@ -126,6 +126,9 @@ export default function MaterialsPage() {
     try {
       const body = new FormData()
       body.append("file", file)
+      if (activeProjectId) {
+        body.append("project_id", activeProjectId)
+      }
       const res = await fetch(getApiUrl("/api/v1/materials/upload-bill"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
