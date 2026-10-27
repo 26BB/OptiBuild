@@ -88,7 +88,9 @@ def check_database() -> tuple[bool, str]:
                 f"Connected successfully. All {len(expected_tables)} OptiBuild tables verified: {expected_tables}",
             )
     except Exception as e:
-        return False, f"Connection error: {str(e)}"
+        import re
+        safe_msg = re.sub(r':([^/@:\s]+)@', ':***@', str(e))
+        return False, f"Connection error: {safe_msg}"
 
 
 def check_storage_bucket(bucket_name: str) -> tuple[bool, str]:
@@ -142,23 +144,36 @@ def check_storage_bucket(bucket_name: str) -> tuple[bool, str]:
             Metadata={"test": "true", "purpose": "health_check"},
         )
 
-        # 3. Download and verify content
-        response = s3.get_object(Bucket=bucket_name, Key=probe_key)
-        downloaded_content = response["Body"].read()
+        # 3. Generate signed download URL (10 minutes)
+        signed_url = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": probe_key},
+            ExpiresIn=600,
+        )
+
+        # 4. Download via signed download URL
+        import urllib.request
+        req = urllib.request.Request(signed_url)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            downloaded_content = resp.read()
 
         if downloaded_content != probe_content:
             return (
                 False,
-                f"Data mismatch: uploaded {len(probe_content)} bytes but read {len(downloaded_content)} bytes.",
+                f"Data mismatch: uploaded {len(probe_content)} bytes but read {len(downloaded_content)} bytes via signed URL.",
             )
 
-        # 4. Clean up probe file
+        # 5. Clean up probe file (Delete)
         s3.delete_object(Bucket=bucket_name, Key=probe_key)
 
-        return True, f"Bucket '{bucket_name}': write, read, and cleanup verified successfully."
+        return True, f"Bucket '{bucket_name}': upload, signed download URL, and delete verified successfully."
 
     except Exception as e:
-        return False, f"Storage error for bucket '{bucket_name}': {str(e)}"
+        # Sanitize error to avoid printing secrets or keys
+        err_msg = str(e)
+        import re
+        err_msg = re.sub(r'(?:AWSAccessKeyId|Signature|access_key|secret_key)=[^&\s]+', r'\1=***', err_msg)
+        return False, f"Storage check failed for bucket '{bucket_name}': {err_msg}"
 
 
 def check_health_endpoint() -> tuple[bool, str]:
