@@ -74,3 +74,27 @@ def test_logout_endpoint():
     response = client.post("/api/v1/auth/logout")
     assert response.status_code == 200
     assert response.json()["message"] == "Logged out successfully."
+
+
+def test_verify_password_rejects_casing_variants():
+    # Passwords must match strictly and reject casing variants
+    hashed = hash_password("Pm@123")
+    assert verify_password("Pm@123", hashed) is True
+    assert verify_password("PM@123", hashed) is False
+    assert verify_password("pm@123", hashed) is False
+
+
+def test_jwt_secret_validation_rejects_short_or_missing(monkeypatch):
+    from backend.app.core.config import Settings
+    # Short secret
+    monkeypatch.setenv("JWT_SECRET", "too-short")
+    with pytest.raises(RuntimeError) as exc_info:
+        Settings()
+    assert "at least 32 characters" in str(exc_info.value)
+
+    # Missing secret
+    monkeypatch.delenv("JWT_SECRET", raising=False)
+    with pytest.raises(RuntimeError) as exc_info:
+        Settings()
+    assert "missing or shorter than 32 characters" in str(exc_info.value)
+

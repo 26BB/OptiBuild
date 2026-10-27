@@ -130,7 +130,7 @@ backend/.venv/Scripts/python.exe -m backend.app.db.seed
 | Role | Demo Email | Password | Default Home Route | Permitted Capabilities & Workflow |
 |---|---|---|---|---|
 | **Administrator** | `admin@optibuild.io` | `Admin@123` | `/admin` | Manage organization users, invite staff, assign team members to projects, access all system views. |
-| **Project Manager** | `pm@optibuild.io` | `PM@123` | `/rera-review` | Upload MahaRERA PDF, review editable pre-fill draft, confirm project creation, generate parametric WBS, run CPM + GA scheduler, evaluate Section 18 crashing optimizer. |
+| **Project Manager** | `pm@optibuild.io` | `Pm@123` | `/rera-review` | Upload MahaRERA PDF, review editable pre-fill draft, confirm project creation, generate parametric WBS, run CPM + GA scheduler, evaluate Section 18 crashing optimizer. |
 | **Site Engineer** | `site@optibuild.io` | `Site@123` | `/` | Inspect project Gantt timeline, update real-time activity completion percentage and status, upload site inspection photos for AI stage classification. |
 | **Store Keeper** | `store@optibuild.io` | `Store@123` | `/materials` | Log material deliveries (Steel, Cement, Concrete), record actual invoice costs, attach unparsed bill photos as documentary evidence. |
 | **Architect** | `architect@optibuild.io` | `Architect@123` | `/drawings` | Attach architectural, structural, and MEP CAD/PDF drawings for site visual reference (**stored for human viewing only; never parsed**). |

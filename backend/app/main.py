@@ -1,7 +1,6 @@
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from backend.app.core.config import settings
 from backend.app.api.v1.auth import router as auth_router
@@ -45,10 +44,6 @@ app.include_router(rera_router, prefix=settings.API_V1_STR)
 app.include_router(materials_router, prefix=settings.API_V1_STR)
 app.include_router(dashboard_router, prefix=settings.API_V1_STR)
 
-# Local static uploads directory fallback
-uploads_dir = Path(__file__).resolve().parent.parent / "uploads"
-uploads_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 @app.get("/health", tags=["Health"])

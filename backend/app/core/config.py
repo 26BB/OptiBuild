@@ -15,10 +15,16 @@ class Settings:
     PROJECT_NAME: str = "OptiBuild Construction Scheduling & Resource Optimization Engine"
     API_V1_STR: str = "/api/v1"
 
-    # JWT Authentication
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "optibuild-super-secret-jwt-key-2026-production")
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
+    def __init__(self):
+        jwt_secret = os.getenv("JWT_SECRET")
+        if not jwt_secret or len(jwt_secret.strip()) < 32:
+            raise RuntimeError(
+                "JWT_SECRET environment variable is missing or shorter than 32 characters. "
+                "Please configure a secure JWT_SECRET with at least 32 characters."
+            )
+        self.JWT_SECRET: str = jwt_secret.strip()
+        self.JWT_ALGORITHM: str = "HS256"
+        self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
 
     @property
     def CORS_ORIGINS(self) -> List[str]:

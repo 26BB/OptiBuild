@@ -1,3 +1,8 @@
+import os
+# Ensure test JWT_SECRET is set before importing app or config
+if "JWT_SECRET" not in os.environ or len(os.environ.get("JWT_SECRET", "").strip()) < 32:
+    os.environ["JWT_SECRET"] = "test-secret-at-least-32-chars-for-optibuild-tests"
+
 import pytest
 from backend.app.main import app
 from backend.app.core.auth import get_current_user

@@ -31,7 +31,7 @@ const DEMO_PRESETS = [
     role: "project_manager",
     title: "Project Manager",
     email: "pm@optibuild.io",
-    pass: "PM@123",
+    pass: "Pm@123",
     icon: Briefcase,
     badge: "MahaRERA, WBS & Schedule",
   },
