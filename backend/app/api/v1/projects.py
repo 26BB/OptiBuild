@@ -244,6 +244,8 @@ def generate_and_save_wbs(
     )
 
     # Generate WBS
+    if not payload.project_name or not payload.project_name.strip():
+        payload.project_name = project.name
     wbs_result = WBSGenerator.generate(payload)
     wbs_data = wbs_result.model_dump()
 

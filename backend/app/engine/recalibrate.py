@@ -182,7 +182,7 @@ class CrashCostRecalibrator:
         """
         Dynamically calculates budget vs actual, package breakdown, S-curve, and recalibration.
         """
-        name = project_name or "Tower-A Residential (G+14)"
+        name = project_name or "Project"
         planned = 180000000.0 if total_planned is None or total_planned == 0.0 else total_planned
         logs = DEFAULT_SAMPLE_LOGS if material_logs is None else material_logs
 

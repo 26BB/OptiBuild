@@ -4,7 +4,7 @@ from backend.app.schemas.schedule import TaskItem
 
 
 class BuildingParametersInput(BaseModel):
-    project_name: str = Field(default="Tower-A Residential (G+14)")
+    project_name: Optional[str] = Field(default=None, description="Project Name")
     plot_area_sqft: float = Field(default=25000.0, ge=100.0, description="Plot area in sq.ft.")
     built_up_area_sqft: float = Field(default=75000.0, ge=100.0, description="Total construction built-up area")
     carpet_area_sqft: Optional[float] = Field(default=52500.0, ge=0.0)
@@ -34,7 +34,7 @@ class WbsCategory(BaseModel):
 
 
 class ParametricWbsResponse(BaseModel):
-    project_name: str
+    project_name: Optional[str] = None
     built_up_area_sqft: float
     base_rate_per_sqft: float
     total_estimated_cost: float
