@@ -8,6 +8,7 @@ import { GanttSchedule, ScheduleTask } from "@/components/schedule/GanttSchedule
 import { RecoverySidePanel } from "@/components/optimizer/RecoverySidePanel"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { SiteWeatherWidget } from "@/components/weather/SiteWeatherWidget"
+import { GuidedStepper } from "@/components/project/GuidedStepper"
 import { useAuth } from "@/context/AuthContext"
 import {
   Calendar,
@@ -23,10 +24,21 @@ import {
   Save,
   Check,
   RefreshCw,
+  FolderKanban,
+  Plus,
 } from "lucide-react"
 
 export default function HomePage() {
-  const { user, token, activeProjectId, activeProject, refreshProjects, hasPermission } = useAuth()
+  const {
+    user,
+    token,
+    projects,
+    activeProjectId,
+    activeProject,
+    setActiveProjectId,
+    refreshProjects,
+    hasPermission,
+  } = useAuth()
 
   const [tasks, setTasks] = useState<ScheduleTask[]>([])
   const [dbTasks, setDbTasks] = useState<any[]>([])
@@ -167,14 +179,14 @@ export default function HomePage() {
     }
   }
 
-  if (!activeProjectId) {
+  if (projects.length === 0) {
     return (
       <div className="flex flex-col min-h-screen">
-        <TopBar projectName="Gantt Schedule & Critical Path" />
+        <TopBar projectName="Projects Overview" />
         <main className="p-6">
           <EmptyState
-            title="No Active Project Selected"
-            description="Upload a MahaRERA PDF to create your first project and initialize its schedule."
+            title="Upload a MahaRERA PDF to create your first project"
+            description="Upload an official MahaRERA project certificate to automatically extract project timeline, built-up area, and statutory handover commitments."
             actionLabel="Upload MahaRERA PDF"
             actionHref="/rera-review"
           />
@@ -183,10 +195,13 @@ export default function HomePage() {
     )
   }
 
+  const effectiveActiveProject =
+    activeProject || projects.find((p) => p.id === activeProjectId) || projects[0]
+
   const criticalTasksCount = tasks.filter((t) => t.is_critical).length
   const totalMakespan = Math.max(...tasks.map((t) => t.finish_day), 0)
   const unconstrainedCpmDays = Math.max(1, Math.round(totalMakespan * 0.85))
-  const delayRiskDays = activeProject?.delay_days || Math.max(0, totalMakespan - unconstrainedCpmDays)
+  const delayRiskDays = effectiveActiveProject?.delay_days || Math.max(0, totalMakespan - unconstrainedCpmDays)
 
   const canEditProgress = hasPermission(["site_engineer", "project_manager", "admin"])
   const canRunSchedule = hasPermission(["project_manager", "admin"])
@@ -194,13 +209,148 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopBar
-        projectName={activeProject?.name ? `Schedule: ${activeProject.name}` : "Gantt Schedule"}
+        projectName={effectiveActiveProject?.name ? `Overview: ${effectiveActiveProject.name}` : "Projects Overview"}
         delayRiskDays={delayRiskDays}
         onRecalculate={canRunSchedule && tasks.length > 0 ? handleRunOptimizer : undefined}
         isOptimizing={isOptimizing}
       />
 
       <main className="p-4 md:p-6 space-y-6">
+        {/* Projects Overview Deck */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FolderKanban className="w-4 h-4 text-primary" />
+              <h2 className="font-heading font-semibold text-xs uppercase tracking-wider text-foreground">
+                PROJECTS OVERVIEW ({projects.length})
+              </h2>
+            </div>
+            {hasPermission(["project_manager", "admin"]) && (
+              <Link
+                href="/rera-review"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-primary-foreground font-mono text-xs hover:bg-primary/90 transition-colors border border-primary"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Project</span>
+              </Link>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {projects.map((proj) => {
+              const isSelected = proj.id === activeProjectId
+              return (
+                <div
+                  key={proj.id}
+                  className={`border p-4 bg-card transition-all flex flex-col justify-between ${
+                    isSelected
+                      ? "border-primary shadow-sm ring-1 ring-primary/40"
+                      : "border-border hover:border-border/80"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-heading font-bold text-sm text-foreground line-clamp-1">
+                          {proj.name}
+                        </h3>
+                        <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                          RERA: {proj.rera_registration_no || "Registration Pending"}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <span className="shrink-0 px-2 py-0.5 bg-primary/10 text-primary border border-primary/30 text-[10px] font-mono font-bold uppercase">
+                          ACTIVE
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-mono">
+                      <div className="bg-muted/40 p-2 border border-border/50">
+                        <span className="text-muted-foreground block text-[10px]">Target Date:</span>
+                        <span className="font-semibold text-foreground">
+                          {proj.proposed_completion_date || "Not Set"}
+                        </span>
+                      </div>
+                      <div className="bg-muted/40 p-2 border border-border/50">
+                        <span className="text-muted-foreground block text-[10px]">Delay Exposure:</span>
+                        <span
+                          className={`font-semibold ${
+                            Number(proj.delay_days || 0) > 0 ? "text-status-warning" : "text-status-success"
+                          }`}
+                        >
+                          +{proj.delay_days || 0} days
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Status Badges for WBS / Schedule / Optimizer */}
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+                          proj.has_wbs
+                            ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
+                            : "bg-muted text-muted-foreground border-border"
+                        }`}
+                      >
+                        WBS: {proj.has_wbs ? "Done" : "Pending"}
+                      </span>
+
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+                          proj.has_schedule
+                            ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
+                            : "bg-muted text-muted-foreground border-border"
+                        }`}
+                      >
+                        Schedule: {proj.has_schedule ? "Done" : "Pending"}
+                      </span>
+
+                      <span
+                        className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+                          proj.has_optimizer
+                            ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
+                            : "bg-muted text-muted-foreground border-border"
+                        }`}
+                      >
+                        Optimizer: {proj.has_optimizer ? "Done" : "Pending"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+                    {isSelected ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-primary font-semibold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Active Project
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setActiveProjectId(proj.id)}
+                        className="px-3 py-1 bg-secondary text-foreground text-xs font-mono font-medium border border-border hover:bg-muted transition-colors"
+                      >
+                        Make Active
+                      </button>
+                    )}
+
+                    <Link
+                      href="/wbs"
+                      onClick={() => {
+                        if (!isSelected) setActiveProjectId(proj.id)
+                      }}
+                      className="text-xs font-mono text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    >
+                      <span>Work Breakdown</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         {error && (
           <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
             <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -215,6 +365,19 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Guided Stepper if active project setup is in progress */}
+        {effectiveActiveProject && (!effectiveActiveProject.has_wbs || !effectiveActiveProject.has_schedule || !effectiveActiveProject.has_optimizer) && (
+          <GuidedStepper
+            projectId={effectiveActiveProject.id}
+            projectName={effectiveActiveProject.name}
+            hasWbs={effectiveActiveProject.has_wbs}
+            hasSchedule={effectiveActiveProject.has_schedule}
+            hasOptimizer={effectiveActiveProject.has_optimizer}
+            memberCount={(effectiveActiveProject as any).members_count || 0}
+            currentStep={!effectiveActiveProject.has_wbs ? 3 : 4}
+          />
+        )}
+
         {isLoading ? (
           <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -222,7 +385,7 @@ export default function HomePage() {
           </div>
         ) : tasks.length === 0 ? (
           <EmptyState
-            title="Schedule Not Yet Generated for This Project"
+            title="Schedule Not Yet Generated for Active Project"
             description="This project currently has no WBS activities or scheduled timeline. Generate the WBS from building parameters to populate activities."
             actionLabel={canRunSchedule ? "Generate WBS & Cost Estimate" : undefined}
             actionHref="/wbs"

@@ -17,11 +17,11 @@ router = APIRouter(prefix="/users", tags=["User & Membership Administration"])
 
 @router.get("", response_model=List[UserProfile])
 def list_users(
-    current_user: User = Depends(require_roles("admin")),
+    current_user: User = Depends(require_roles("admin", "project_manager")),
     db: Session = Depends(get_db),
 ):
     """
-    Returns all registered users in the organization (admin only).
+    Returns all registered users in the organization (admin and project_manager).
     """
     users = db.query(User).order_by(User.created_at.desc()).all()
     return [UserProfile.model_validate(u) for u in users]

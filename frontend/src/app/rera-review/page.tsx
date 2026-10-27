@@ -8,6 +8,7 @@ import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { PermissionDenied } from "@/components/ui/PermissionDenied"
+import { GuidedStepper } from "@/components/project/GuidedStepper"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
@@ -234,36 +235,37 @@ export default function ReraReviewPage() {
           </div>
         )}
 
-        {/* Confirmed Project Success Banner */}
+        {/* Confirmed Project Success Banner & Guided Stepper */}
         {confirmedProject && (
-          <div className="border border-status-success/50 bg-status-success/10 p-5 space-y-3">
-            <div className="flex items-center gap-2 text-status-success font-heading font-semibold text-sm">
-              <CheckCircle2 className="w-5 h-5" />
-              <span>Project Successfully Confirmed & Created in Database!</span>
+          <div className="space-y-4">
+            <div className="border border-status-success/50 bg-status-success/10 p-5 space-y-3">
+              <div className="flex items-center gap-2 text-status-success font-heading font-semibold text-sm">
+                <CheckCircle2 className="w-5 h-5" />
+                <span>Project Successfully Confirmed & Created in Database!</span>
+              </div>
+              <p className="text-xs font-mono text-foreground">
+                Project Name: <span className="font-bold">{confirmedProject.name}</span> (ID: {confirmedProject.id})
+              </p>
+              <div className="pt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(null)
+                    setFileName(null)
+                    setConfirmedProject(null)
+                  }}
+                  className="px-3 py-1.5 border border-border bg-card text-foreground font-mono text-xs hover:bg-muted"
+                >
+                  Create Another Project
+                </button>
+              </div>
             </div>
-            <p className="text-xs font-mono text-foreground">
-              Project Name: <span className="font-bold">{confirmedProject.name}</span> (ID: {confirmedProject.id})
-            </p>
-            <div className="pt-2 flex items-center gap-3">
-              <Link
-                href="/wbs"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors"
-              >
-                <span>Proceed to Step 2: WBS & Cost Estimation</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setFormData(null)
-                  setFileName(null)
-                  setConfirmedProject(null)
-                }}
-                className="px-3 py-2 border border-border bg-card text-foreground font-mono text-xs hover:bg-muted"
-              >
-                Create Another Project
-              </button>
-            </div>
+
+            <GuidedStepper
+              projectId={confirmedProject.id}
+              projectName={confirmedProject.name}
+              currentStep={1}
+            />
           </div>
         )}
 

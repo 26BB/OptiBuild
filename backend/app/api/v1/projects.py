@@ -91,6 +91,7 @@ def list_projects(
             "has_wbs": p.wbs_data is not None,
             "has_schedule": p.schedule_data is not None,
             "has_optimizer": p.optimizer_data is not None,
+            "members_count": len(p.members) if p.members else 0,
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }
         for p in projects
@@ -130,6 +131,10 @@ def get_project_detail(
         "total_project_cost": project.total_project_cost,
         "total_allottee_investment": project.total_allottee_investment,
         "delay_days": project.delay_days,
+        "has_wbs": project.wbs_data is not None,
+        "has_schedule": project.schedule_data is not None,
+        "has_optimizer": project.optimizer_data is not None,
+        "members_count": len(members),
         "wbs_data": project.wbs_data,
         "schedule_data": project.schedule_data,
         "optimizer_data": project.optimizer_data,

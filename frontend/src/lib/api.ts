@@ -22,3 +22,86 @@ export function getApiUrl(path: string): string {
 
   return `${backendBase.replace(/\/$/, "")}${cleanPath}`;
 }
+
+type WakeupListener = (isWakingUp: boolean) => void;
+const wakeupListeners: Set<WakeupListener> = new Set();
+
+export function onWakeupStateChange(listener: WakeupListener): () => void {
+  wakeupListeners.add(listener);
+  return () => {
+    wakeupListeners.delete(listener);
+  };
+}
+
+let activeWakeupRequests = 0;
+
+export function notifyWakeup(isWaking: boolean) {
+  wakeupListeners.forEach((l) => {
+    try {
+      l(isWaking);
+    } catch {}
+  });
+}
+
+// Client-side automatic fetch wrapper:
+// - If any API request takes longer than 5 seconds, notifies wakeup listener ("Waking up the server, please wait...")
+// - Retries automatically up to 3 times before displaying an error
+if (typeof window !== "undefined" && !(window as any).__optibuild_fetch_installed__) {
+  (window as any).__optibuild_fetch_installed__ = true;
+  const originalFetch = window.fetch;
+
+  window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const maxRetries = 3;
+    let attempt = 0;
+
+    while (attempt <= maxRetries) {
+      let timeoutId: any = null;
+      let hasNotifiedWakeup = false;
+
+      timeoutId = setTimeout(() => {
+        hasNotifiedWakeup = true;
+        activeWakeupRequests++;
+        notifyWakeup(true);
+      }, 5000);
+
+      try {
+        const response = await originalFetch(input, init);
+
+        clearTimeout(timeoutId);
+        if (hasNotifiedWakeup) {
+          activeWakeupRequests = Math.max(0, activeWakeupRequests - 1);
+          if (activeWakeupRequests === 0) notifyWakeup(false);
+          hasNotifiedWakeup = false;
+        }
+
+        // On cold-start, free servers or gateway proxies can return 502/503/504 while waking up
+        if (
+          (response.status === 502 || response.status === 503 || response.status === 504) &&
+          attempt < maxRetries
+        ) {
+          attempt++;
+          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          continue;
+        }
+
+        return response;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if (hasNotifiedWakeup) {
+          activeWakeupRequests = Math.max(0, activeWakeupRequests - 1);
+          if (activeWakeupRequests === 0) notifyWakeup(false);
+          hasNotifiedWakeup = false;
+        }
+
+        if (attempt < maxRetries) {
+          attempt++;
+          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    throw new Error("Failed to reach server after retries.");
+  };
+}

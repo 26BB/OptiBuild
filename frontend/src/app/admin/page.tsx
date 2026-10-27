@@ -112,7 +112,7 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    if (token && hasPermission(["admin"])) {
+    if (token && hasPermission(["admin", "project_manager"])) {
       fetchUsers()
     }
   }, [token])
@@ -207,15 +207,15 @@ export default function AdminPage() {
   }
 
   // Access check
-  if (!hasPermission(["admin"])) {
+  if (!hasPermission(["admin", "project_manager"])) {
     return (
       <div className="flex flex-col min-h-screen">
         <TopBar projectName="Administration" />
         <main className="p-6">
           <PermissionDenied
-            title="Administrator Access Required"
-            description="Only users with the 'admin' role can manage organization users, create accounts, and assign project roles."
-            requiredRoles={["admin"]}
+            title="Administrator / Manager Access Required"
+            description="Only Administrators and Project Managers can manage users and assign project team roles."
+            requiredRoles={["admin", "project_manager"]}
           />
         </main>
       </div>
@@ -264,94 +264,96 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Create User Form */}
-        <div className="border border-border bg-card p-4">
-          <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-            <UserPlus className="w-3.5 h-3.5 text-primary" />
-            Register New User
-          </h3>
+        {/* Create User Form (Admin Only) */}
+        {hasPermission(["admin"]) && (
+          <div className="border border-border bg-card p-4">
+            <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+              <UserPlus className="w-3.5 h-3.5 text-primary" />
+              Register New User
+            </h3>
 
-          <form onSubmit={handleCreateUser} className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
-            <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Ramesh Kumar"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
-              />
-            </div>
+            <form onSubmit={handleCreateUser} className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+              <div>
+                <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ramesh Kumar"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
+                />
+              </div>
 
-            <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="ramesh@optibuild.io"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
-              />
-            </div>
+              <div>
+                <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="ramesh@optibuild.io"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
+                />
+              </div>
 
-            <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                Initial Password
-              </label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
-              />
-            </div>
+              <div>
+                <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
+                  Initial Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
+                />
+              </div>
 
-            <div>
-              <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
-                Global Role
-              </label>
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
-              >
-                {ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div>
+                <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">
+                  Global Role
+                </label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  className="w-full text-xs font-mono bg-background border border-border p-2 text-foreground"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={isCreatingUser || !newName.trim() || !newEmail.trim() || !newPassword}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors border border-primary disabled:opacity-50"
-              >
-                {isCreatingUser ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-3.5 h-3.5" />
-                    Create User
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
+              <div>
+                <button
+                  type="submit"
+                  disabled={isCreatingUser || !newName.trim() || !newEmail.trim() || !newPassword}
+                  className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors border border-primary disabled:opacity-50"
+                >
+                  {isCreatingUser ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-3.5 h-3.5" />
+                      Create User
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* User Roster Table */}
         <div className="border border-border bg-card">
