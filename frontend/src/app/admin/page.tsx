@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth, UserProfile } from "@/context/AuthContext"
 import {
   Users,
@@ -211,10 +212,10 @@ export default function AdminPage() {
       <div className="flex flex-col min-h-screen">
         <TopBar projectName="Administration" />
         <main className="p-6">
-          <EmptyState
-            isPermissionDenied
+          <PermissionDenied
             title="Administrator Access Required"
             description="Only users with the 'admin' role can manage organization users, create accounts, and assign project roles."
+            requiredRoles={["admin"]}
           />
         </main>
       </div>

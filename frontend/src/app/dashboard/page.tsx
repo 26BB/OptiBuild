@@ -17,6 +17,7 @@ import {
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
@@ -140,12 +141,10 @@ export default function DashboardPage() {
       <div className="flex flex-col min-h-screen">
         <TopBar projectName="Budget vs Actual Dashboard" />
         <main className="p-6">
-          <EmptyState
-            isPermissionDenied={true}
+          <PermissionDenied
             title="Finance / Executive Access Required"
             description="Budget vs Actual financial analytics and delay risk exposure are restricted to Accountants, Owners, and Project Managers."
-            actionLabel="Return to Schedule"
-            actionHref="/"
+            requiredRoles={["accountant", "owner", "admin", "project_manager"]}
           />
         </main>
       </div>

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
@@ -73,12 +74,10 @@ export default function ReraReviewPage() {
       <div className="flex flex-col min-h-screen">
         <TopBar projectName="MahaRERA Project Registration" />
         <main className="p-6">
-          <EmptyState
-            isPermissionDenied={true}
+          <PermissionDenied
             title="Project Manager Access Required"
             description="Only Project Managers and Administrators are authorized to parse MahaRERA certificates and register projects."
-            actionLabel="Return to Schedule"
-            actionHref="/"
+            requiredRoles={["project_manager", "admin"]}
           />
         </main>
       </div>

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
@@ -134,6 +135,22 @@ export default function WbsPage() {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  // Permission check
+  if (!hasPermission(["project_manager", "admin", "site_engineer", "architect", "accountant", "owner"])) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <TopBar projectName="Parametric WBS & Cost Estimation" />
+        <main className="p-6">
+          <PermissionDenied
+            title="Access Restricted"
+            description="Work Breakdown Structure estimation is restricted to project planning, engineering, and finance personnel."
+            requiredRoles={["project_manager", "admin", "site_engineer", "architect", "accountant", "owner"]}
+          />
+        </main>
+      </div>
+    )
   }
 
   if (!activeProjectId) {

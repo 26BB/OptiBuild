@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import {
   Cpu,
@@ -170,10 +171,10 @@ export default function BenchmarkPage() {
       <div className="flex flex-col min-h-screen">
         <TopBar projectName="OR-Tools CP-SAT vs Genetic Algorithm Benchmark" />
         <main className="p-6">
-          <EmptyState
-            isPermissionDenied
+          <PermissionDenied
             title="Access Restricted"
             description="OR-Tools CP-SAT exact validation and RCPSP solver benchmarking is restricted to Project Managers and Administrators."
+            requiredRoles={["admin", "project_manager"]}
           />
         </main>
       </div>

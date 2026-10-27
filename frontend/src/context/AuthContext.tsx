@@ -46,12 +46,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const ROLE_HOMES: Record<string, string> = {
   admin: "/admin",
-  project_manager: "/rera-review",
-  site_engineer: "/",
+  project_manager: "/",
+  site_engineer: "/materials",
   store_keeper: "/materials",
   architect: "/drawings",
   accountant: "/dashboard",
   owner: "/dashboard",
+}
+
+function setAuthCookies(tokenVal: string, roleVal?: string) {
+  if (typeof document !== "undefined") {
+    document.cookie = `optibuild_token=${tokenVal}; path=/; max-age=86400; SameSite=Lax`
+    document.cookie = `auth_token=${tokenVal}; path=/; max-age=86400; SameSite=Lax`
+    if (roleVal) {
+      document.cookie = `optibuild_role=${roleVal}; path=/; max-age=86400; SameSite=Lax`
+    }
+  }
+}
+
+function clearAuthCookies() {
+  if (typeof document !== "undefined") {
+    document.cookie = "optibuild_token=; path=/; max-age=0"
+    document.cookie = "auth_token=; path=/; max-age=0"
+    document.cookie = "optibuild_role=; path=/; max-age=0"
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -73,8 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedProjectId = localStorage.getItem("optibuild_active_project_id")
 
         if (storedToken && storedUser) {
+          const parsedUser = JSON.parse(storedUser)
           setToken(storedToken)
-          setUser(JSON.parse(storedUser))
+          setUser(parsedUser)
+          setAuthCookies(storedToken, parsedUser.role)
           if (storedProjectId) {
             setActiveProjectIdState(storedProjectId)
           }
@@ -86,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (res.ok) {
             const data = await res.json()
             setUser(data.user)
+            setAuthCookies(storedToken, data.user.role)
             localStorage.setItem("optibuild_user", JSON.stringify(data.user))
             if (data.projects && Array.isArray(data.projects)) {
               setProjects(data.projects)
@@ -98,9 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Token expired or invalid
             localStorage.removeItem("optibuild_token")
             localStorage.removeItem("optibuild_user")
+            clearAuthCookies()
             setToken(null)
             setUser(null)
           }
+        } else {
+          clearAuthCookies()
         }
       } catch (err) {
         console.error("Auth hydration error:", err)
@@ -164,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json()
       setToken(data.access_token)
       setUser(data.user)
+      setAuthCookies(data.access_token, data.user.role)
 
       localStorage.setItem("optibuild_token", data.access_token)
       localStorage.setItem("optibuild_user", JSON.stringify(data.user))
@@ -197,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("optibuild_token")
     localStorage.removeItem("optibuild_user")
     localStorage.removeItem("optibuild_active_project_id")
+    clearAuthCookies()
     setToken(null)
     setUser(null)
     setProjects([])

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
 import {
@@ -184,15 +185,15 @@ export default function OptimizerPage() {
   }
 
   // Permission check
-  if (!hasPermission(["admin", "project_manager"])) {
+  if (!hasPermission(["admin", "project_manager", "owner"])) {
     return (
       <div className="flex flex-col min-h-screen">
         <TopBar projectName="Delay Penalty vs Crashing Cost Optimizer" />
         <main className="p-6">
-          <EmptyState
-            isPermissionDenied
+          <PermissionDenied
             title="Access Restricted"
-            description="MahaRERA delay penalty calculation and schedule crashing optimization is restricted to Project Managers and Administrators."
+            description="MahaRERA delay penalty calculation and schedule crashing optimization is restricted to Project Managers, Owners, and Administrators."
+            requiredRoles={["admin", "project_manager", "owner"]}
           />
         </main>
       </div>
