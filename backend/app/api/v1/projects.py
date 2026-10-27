@@ -160,7 +160,7 @@ def get_project_detail(
                 "title": d.title,
                 "drawing_type": d.drawing_type,
                 "file_name": d.file_name,
-                "file_url": d.file_url,
+                "file_url": storage.get_download_url(d.file_url),
                 "uploaded_at": d.uploaded_at.isoformat() if d.uploaded_at else None,
             }
             for d in drawings
@@ -168,7 +168,7 @@ def get_project_detail(
         "photos": [
             {
                 "id": ph.id,
-                "photo_url": ph.photo_url,
+                "photo_url": storage.get_download_url(ph.photo_url),
                 "predicted_stage": ph.predicted_stage,
                 "stage_label": ph.stage_label,
                 "confidence_score": ph.confidence_score,
@@ -534,7 +534,7 @@ def list_project_drawings(
             "title": d.title,
             "drawing_type": d.drawing_type,
             "file_name": d.file_name,
-            "file_url": d.file_url,
+            "file_url": storage.get_download_url(d.file_url),
             "uploaded_by_id": d.uploaded_by_id,
             "uploaded_at": d.uploaded_at.isoformat() if d.uploaded_at else None,
         }
@@ -560,7 +560,7 @@ async def upload_architect_drawing(
     )
 
     content = await file.read()
-    file_url = storage.upload_architect_drawing(content, file.filename)
+    file_url = storage.upload_architect_drawing(content, file.filename, project_id=project_id)
 
     drawing = ProjectDrawing(
         project_id=project_id,
@@ -598,7 +598,7 @@ def list_site_photos(
     return [
         {
             "id": p.id,
-            "photo_url": p.photo_url,
+            "photo_url": storage.get_download_url(p.photo_url),
             "predicted_stage": p.predicted_stage,
             "stage_label": p.stage_label,
             "confidence_score": p.confidence_score,
@@ -628,7 +628,7 @@ async def upload_site_photo(
     )
 
     content = await file.read()
-    photo_url = storage.upload_site_photo(content, file.filename)
+    photo_url = storage.upload_site_photo(content, file.filename, project_id=project_id)
 
     classification = SitePhotoClassifier.classify_image_bytes(content, file.filename)
 

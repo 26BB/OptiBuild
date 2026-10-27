@@ -25,6 +25,7 @@ class Settings:
         self.JWT_SECRET: str = jwt_secret.strip()
         self.JWT_ALGORITHM: str = "HS256"
         self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
+        self.MAX_PROJECT_STORAGE_MB: int = int(os.getenv("MAX_PROJECT_STORAGE_MB", "200"))
 
     @property
     def CORS_ORIGINS(self) -> List[str]:

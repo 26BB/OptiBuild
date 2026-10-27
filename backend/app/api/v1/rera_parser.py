@@ -43,6 +43,8 @@ async def upload_and_parse_rera_pdf(
         draft.raw_pdf_url = pdf_url
 
         return draft
+    except HTTPException:
+        raise
     except Exception as e:
         # If parsing completely fails, return clean empty draft for manual entry
         return MahaRERAPreFillDraft(

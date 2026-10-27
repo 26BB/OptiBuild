@@ -61,7 +61,7 @@ def get_material_log(
                 invoice_number=entry.invoice_no,
                 wbs_code=entry.wbs_code,
                 bill_photo_name=entry.bill_attachment_url.split("/")[-1] if entry.bill_attachment_url else None,
-                bill_photo_url=entry.bill_attachment_url,
+                bill_photo_url=storage.get_download_url(entry.bill_attachment_url) if entry.bill_attachment_url else None,
                 is_unparsed_evidence=True,
             )
         )
@@ -169,7 +169,7 @@ async def upload_bill_evidence(
         )
 
     content = await file.read()
-    file_url = storage.upload_bill_evidence(content, file.filename)
+    file_url = storage.upload_bill_evidence(content, file.filename, project_id=project_id or "general")
     return {
         "status": "STORED",
         "file_name": file.filename,
