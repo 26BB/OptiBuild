@@ -143,8 +143,8 @@ The baseline OptiBuild user interface functions mechanically, but looks generic,
 | **1** | Page 1: Login Rebuild (`/login`) | **Completed** | Passed | Passed | `4280e44` |
 | **2** | Page 2: App Shell Rebuild (Sidebar, TopBar, Breadcrumb, Cmd+K) | **Completed** | Passed | Passed | `f1005df` |
 | **—** | *Checkpoint Review & User Approval* | **Approved** | — | — | `437f100` |
-| **3** | Page 4: Projects Overview (`/`) | **Completed** | Passed | Passed | Pending Push |
-| **4** | Page 5: MahaRERA Upload & 4-Step Stepper (`/rera-review`) | **Pending** | Pending | Pending | — |
+| **3** | Page 4: Projects Overview (`/`) | **Completed** | Passed | Passed | `fb0a9b0` |
+| **4** | Page 5: MahaRERA Upload & 4-Step Stepper (`/rera-review`) | **Completed** | Passed | Passed | Pending Push |
 | **5** | Page 6: WBS Breakdown & Costing Table (`/wbs`) | **Pending** | Pending | Pending | — |
 | **6** | Page 7: Schedule & Gantt Restyling (`/wbs`) | **Pending** | Pending | Pending | — |
 | **7** | Page 8: Delay Recovery Optimizer (`/optimizer`) | **Pending** | Pending | Pending | — |

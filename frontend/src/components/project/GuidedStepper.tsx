@@ -62,7 +62,7 @@ export function GuidedStepper({
   const progressPercent = Math.round((completedCount / steps.length) * 100)
 
   return (
-    <div className="border border-border bg-card p-4 space-y-4">
+    <div className="border border-border bg-card p-4 space-y-4 rounded-[4px] shadow-2xs">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
         <div>
           <span className="text-[10px] font-mono uppercase tracking-wider text-primary font-semibold">
@@ -73,7 +73,7 @@ export function GuidedStepper({
           </h3>
         </div>
         <div className="flex items-center gap-3">
-          <div className="w-32 bg-secondary h-2 border border-border overflow-hidden">
+          <div className="w-32 bg-secondary h-2 border border-border overflow-hidden rounded-[2px]">
             <div
               className="bg-primary h-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -93,7 +93,7 @@ export function GuidedStepper({
             <Link
               key={s.step}
               href={s.href}
-              className={`p-3 border transition-colors flex flex-col justify-between group ${
+              className={`p-3 border transition-colors flex flex-col justify-between group rounded-[4px] ${
                 s.isDone
                   ? "border-status-success/40 bg-status-success/5 hover:bg-status-success/10"
                   : isActive
