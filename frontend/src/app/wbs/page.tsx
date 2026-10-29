@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
@@ -8,6 +8,10 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
+import { Counter } from "@/components/ui/Counter"
+import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { toast } from "sonner"
 import {
   FileSpreadsheet,
   Building2,
@@ -20,6 +24,11 @@ import {
   TrendingUp,
   AlertTriangle,
   Loader2,
+  ChevronDown,
+  ChevronRight,
+  PieChart,
+  HardHat,
+  Sliders,
 } from "lucide-react"
 
 interface WbsItem {
@@ -61,6 +70,7 @@ export default function WbsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
 
   // Fetch project details on activeProjectId change
   useEffect(() => {
@@ -130,17 +140,27 @@ export default function WbsPage() {
       const data = await res.json()
       setWbsData(data.wbs_data)
       await refreshProjects()
+      toast.success("WBS packages and CPM activities generated successfully!")
     } catch (err: any) {
-      setError(err.message || "Failed to generate WBS.")
+      const msg = err.message || "Failed to generate WBS."
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsGenerating(false)
     }
   }
 
+  const toggleCategoryCollapse = (categoryName: string) => {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [categoryName]: !prev[categoryName],
+    }))
+  }
+
   // Permission check
   if (!hasPermission(["project_manager", "admin", "site_engineer", "architect", "accountant", "owner"])) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-background">
         <TopBar projectName="Parametric WBS & Cost Estimation" />
         <main className="p-6">
           <PermissionDenied
@@ -155,7 +175,7 @@ export default function WbsPage() {
 
   if (!activeProjectId) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-background">
         <TopBar projectName="Parametric WBS & Cost Estimation" />
         <main className="p-6">
           <EmptyState
@@ -172,15 +192,15 @@ export default function WbsPage() {
   const canEdit = hasPermission(["project_manager", "admin"])
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background">
       <TopBar
         projectName={activeProject?.name ? `WBS: ${activeProject.name}` : "Parametric WBS & Cost Estimation"}
         delayRiskDays={activeProject?.delay_days || 0}
       />
 
-      <main className="p-4 md:p-6 space-y-6">
+      <main className="p-4 md:p-6 space-y-6 max-w-7xl">
         {/* Header Summary */}
-        <div className="border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[4px] shadow-2xs">
           <div>
             <h2 className="font-heading font-semibold text-base text-foreground flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-primary" />
@@ -195,7 +215,7 @@ export default function WbsPage() {
             <div className="flex items-center gap-3">
               <Link
                 href="/"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors rounded-[2px]"
               >
                 <span>Proceed to Gantt Schedule</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -205,17 +225,20 @@ export default function WbsPage() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
+          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono rounded-[4px]">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Building Parameters Input Form */}
-        <div className="border border-border bg-card p-4 space-y-4">
+        <div className="border border-border bg-card p-4 space-y-4 rounded-[4px] shadow-2xs">
           <div className="text-xs font-mono uppercase text-muted-foreground tracking-wider font-semibold border-b border-border pb-2 flex items-center justify-between">
-            <span>Building Parameters & Cost Base</span>
-            <span className="text-[10px] text-primary">{activeProject?.name}</span>
+            <span className="flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-primary" />
+              <span>Building Parameters & Cost Base</span>
+            </span>
+            <span className="text-[10px] text-primary font-bold">{activeProject?.name}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -228,7 +251,7 @@ export default function WbsPage() {
                 disabled={!canEdit || isGenerating}
                 value={builtUpArea}
                 onChange={(e) => setBuiltUpArea(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60"
+                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60 rounded-[2px]"
               />
             </div>
 
@@ -241,7 +264,7 @@ export default function WbsPage() {
                 disabled={!canEdit || isGenerating}
                 value={numberOfFloors}
                 onChange={(e) => setNumberOfFloors(parseInt(e.target.value, 10) || 1)}
-                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60"
+                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60 rounded-[2px]"
               />
             </div>
 
@@ -254,7 +277,7 @@ export default function WbsPage() {
                 disabled={!canEdit || isGenerating}
                 value={numberOfBasements}
                 onChange={(e) => setNumberOfBasements(parseInt(e.target.value, 10) || 0)}
-                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60"
+                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60 rounded-[2px]"
               />
             </div>
 
@@ -267,7 +290,7 @@ export default function WbsPage() {
                 disabled={!canEdit || isGenerating}
                 value={baseRate}
                 onChange={(e) => setBaseRate(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60"
+                className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground focus:outline-none focus:border-primary disabled:opacity-60 rounded-[2px]"
               />
             </div>
           </div>
@@ -278,7 +301,7 @@ export default function WbsPage() {
                 type="button"
                 disabled={isGenerating}
                 onClick={handleGenerateWbs}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 rounded-[2px]"
               >
                 {isGenerating ? (
                   <>
@@ -298,7 +321,7 @@ export default function WbsPage() {
 
         {/* WBS Output Display */}
         {isLoading ? (
-          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
+          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2 border border-border bg-card rounded-[4px]">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
             <span>Loading Project WBS Data...</span>
           </div>
@@ -313,36 +336,39 @@ export default function WbsPage() {
           <div className="space-y-6">
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 border border-border bg-card">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">
-                  Total Estimated Project Cost
+              <div className="p-4 border border-border bg-card rounded-[4px] shadow-2xs">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground tracking-wider flex items-center justify-between">
+                  <span>Total Estimated Project Cost</span>
+                  <Coins className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div className="text-xl font-bold font-mono text-foreground mt-1">
-                  {formatINR(wbsData.total_estimated_cost)}
+                  <Counter value={wbsData.total_estimated_cost} isCurrency />
                 </div>
                 <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
                   @ ₹{wbsData.base_rate_per_sqft} / sq.ft • {wbsData.built_up_area_sqft.toLocaleString()} sq.ft
                 </div>
               </div>
 
-              <div className="p-4 border border-border bg-card">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">
-                  Unconstrained CPM Makespan
+              <div className="p-4 border border-border bg-card rounded-[4px] shadow-2xs">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground tracking-wider flex items-center justify-between">
+                  <span>Unconstrained CPM Makespan</span>
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div className="text-xl font-bold font-mono text-primary mt-1">
-                  {wbsData.cpm_makespan_days} Days
+                  <Counter value={wbsData.cpm_makespan_days} suffix=" Days" />
                 </div>
                 <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
                   Critical path sequence calculated
                 </div>
               </div>
 
-              <div className="p-4 border border-border bg-card">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">
-                  WBS Breakdown Packages
+              <div className="p-4 border border-border bg-card rounded-[4px] shadow-2xs">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground tracking-wider flex items-center justify-between">
+                  <span>WBS Breakdown Packages</span>
+                  <Layers className="w-3.5 h-3.5 text-foreground" />
                 </div>
                 <div className="text-xl font-bold font-mono text-foreground mt-1">
-                  {wbsData.categories.length} Work Packages
+                  <Counter value={wbsData.categories.length} suffix=" Work Packages" />
                 </div>
                 <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
                   {wbsData.categories.reduce((acc, c) => acc + c.items.length, 0)} Total Activities
@@ -350,57 +376,116 @@ export default function WbsPage() {
               </div>
             </div>
 
-            {/* Packages Table */}
-            <div className="border border-border bg-card divide-y divide-border">
-              {wbsData.categories.map((cat, idx) => (
-                <div key={idx} className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-heading font-semibold text-xs text-foreground">
-                        {cat.category_name}
-                      </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 bg-secondary border border-border text-muted-foreground">
-                        {cat.total_percentage}% Allocation
-                      </span>
-                    </div>
-                    <div className="font-mono font-semibold text-xs text-foreground">
-                      {formatINR(cat.total_cost)}
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs font-mono">
-                      <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-y border-border">
-                        <tr>
-                          <th className="py-1.5 px-3">WBS Code</th>
-                          <th className="py-1.5 px-3">Activity Description</th>
-                          <th className="py-1.5 px-3">Duration</th>
-                          <th className="py-1.5 px-3">Predecessors</th>
-                          <th className="py-1.5 px-3">Share</th>
-                          <th className="py-1.5 px-3 text-right">Estimated Cost</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {cat.items.map((item) => (
-                          <tr key={item.wbs_code} className="hover:bg-muted/30">
-                            <td className="py-2 px-3 font-semibold text-primary">{item.wbs_code}</td>
-                            <td className="py-2 px-3 text-foreground font-sans">{item.title}</td>
-                            <td className="py-2 px-3 text-muted-foreground">{item.duration_days}d</td>
-                            <td className="py-2 px-3 text-muted-foreground">
-                              {item.predecessors.length > 0 ? item.predecessors.join(", ") : "—"}
-                            </td>
-                            <td className="py-2 px-3 text-muted-foreground">{item.budget_percentage}%</td>
-                            <td className="py-2 px-3 text-right font-medium text-foreground">
-                              {formatINR(item.estimated_cost)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+            {/* Tabs for Table Views */}
+            <Tabs defaultValue="activities" className="space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <TabsList className="bg-secondary/70 p-0.5 rounded-[4px]">
+                  <TabsTrigger value="activities" className="px-3 py-1 text-xs font-mono rounded-[2px]">
+                    WBS Activities Breakdown
+                  </TabsTrigger>
+                  <TabsTrigger value="cost-summary" className="px-3 py-1 text-xs font-mono rounded-[2px]">
+                    Package Cost Summary
+                  </TabsTrigger>
+                </TabsList>
+                <div className="text-[11px] font-mono text-muted-foreground hidden sm:block">
+                  Click package header to collapse/expand
                 </div>
-              ))}
-            </div>
+              </div>
+
+              {/* Tab 1: WBS Activities Breakdown */}
+              <TabsContent value="activities" className="space-y-4">
+                <div className="border border-border bg-card divide-y divide-border rounded-[4px] shadow-2xs">
+                  {wbsData.categories.map((cat, idx) => {
+                    const isCollapsed = collapsedCategories[cat.category_name]
+                    return (
+                      <div key={idx} className="p-4 space-y-3">
+                        <button
+                          type="button"
+                          onClick={() => toggleCategoryCollapse(cat.category_name)}
+                          className="w-full flex items-center justify-between text-left hover:opacity-90 transition-opacity"
+                        >
+                          <div className="flex items-center gap-2">
+                            {isCollapsed ? (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-primary" />
+                            )}
+                            <span className="font-heading font-semibold text-xs text-foreground">
+                              {cat.category_name}
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-secondary border border-border text-muted-foreground rounded-[2px]">
+                              {cat.total_percentage}% Allocation
+                            </span>
+                            <span className="text-[10px] font-mono text-muted-foreground">
+                              ({cat.items.length} items)
+                            </span>
+                          </div>
+                          <div className="font-mono font-semibold text-xs text-foreground">
+                            {formatINR(cat.total_cost)}
+                          </div>
+                        </button>
+
+                        {!isCollapsed && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs font-mono">
+                              <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-y border-border">
+                                <tr>
+                                  <th className="py-2 px-3">WBS Code</th>
+                                  <th className="py-2 px-3">Activity Description</th>
+                                  <th className="py-2 px-3">Duration</th>
+                                  <th className="py-2 px-3">Predecessors</th>
+                                  <th className="py-2 px-3">Share</th>
+                                  <th className="py-2 px-3 text-right">Estimated Cost</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/60">
+                                {cat.items.map((item) => (
+                                  <tr key={item.wbs_code} className="hover:bg-muted/30 transition-colors">
+                                    <td className="py-2 px-3 font-semibold text-primary">{item.wbs_code}</td>
+                                    <td className="py-2 px-3 text-foreground font-sans">{item.title}</td>
+                                    <td className="py-2 px-3 text-muted-foreground">{item.duration_days}d</td>
+                                    <td className="py-2 px-3 text-muted-foreground">
+                                      {item.predecessors.length > 0 ? item.predecessors.join(", ") : "—"}
+                                    </td>
+                                    <td className="py-2 px-3 text-muted-foreground">{item.budget_percentage}%</td>
+                                    <td className="py-2 px-3 text-right font-medium text-foreground">
+                                      {formatINR(item.estimated_cost)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </TabsContent>
+
+              {/* Tab 2: Package Cost Summary */}
+              <TabsContent value="cost-summary" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {wbsData.categories.map((cat, idx) => (
+                    <div key={idx} className="border border-border bg-card p-4 rounded-[4px] shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="font-heading font-bold text-foreground">{cat.category_name}</span>
+                        <span className="font-semibold text-primary">{cat.total_percentage}%</span>
+                      </div>
+                      <Progress value={cat.total_percentage} className="h-2" />
+                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground pt-1">
+                        <span>Total Package Cost:</span>
+                        <span className="font-bold text-foreground">{formatINR(cat.total_cost)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                        <span>Rate Equivalent:</span>
+                        <span>₹{Math.round(cat.total_cost / wbsData.built_up_area_sqft)} / sq.ft</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </main>
