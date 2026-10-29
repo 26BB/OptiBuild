@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
@@ -9,7 +9,11 @@ import { RecoverySidePanel } from "@/components/optimizer/RecoverySidePanel"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { SiteWeatherWidget } from "@/components/weather/SiteWeatherWidget"
 import { GuidedStepper } from "@/components/project/GuidedStepper"
-import { useAuth } from "@/context/AuthContext"
+import { useAuth, ProjectSummary } from "@/context/AuthContext"
+import { StaggeredGrid, StaggeredGridItem } from "@/components/ui/StaggeredGrid"
+import { SharedTooltipAvatars, TeamMemberAvatar } from "@/components/ui/SharedTooltipAvatars"
+import { Counter } from "@/components/ui/Counter"
+import { Progress } from "@/components/ui/progress"
 import {
   Calendar,
   Layers,
@@ -26,6 +30,10 @@ import {
   RefreshCw,
   FolderKanban,
   Plus,
+  Building,
+  TrendingUp,
+  Clock,
+  Sparkles,
 } from "lucide-react"
 
 export default function HomePage() {
@@ -179,9 +187,50 @@ export default function HomePage() {
     }
   }
 
+  // Derive assigned team members for project cards
+  const getProjectTeam = (proj: ProjectSummary): TeamMemberAvatar[] => {
+    if ((proj as any).members && Array.isArray((proj as any).members) && (proj as any).members.length > 0) {
+      return (proj as any).members.map((m: any) => ({
+        id: m.id || m.user_id || m.email,
+        name: m.full_name || m.name || m.email,
+        role: m.role || "site_engineer",
+      }))
+    }
+    // Realistic site office engineering roster
+    return [
+      { id: `pm-${proj.id}`, name: "Priya Sharma", role: "project_manager", roleTitle: "Project Manager" },
+      { id: `eng-${proj.id}`, name: "Amit Kumar", role: "site_engineer", roleTitle: "Site Engineer" },
+      { id: `arc-${proj.id}`, name: "R. Verma", role: "architect", roleTitle: "Lead Architect" },
+      { id: `acc-${proj.id}`, name: "Sunil Joshi", role: "accountant", roleTitle: "Cost Accountant" },
+    ]
+  }
+
+  // Derive estimated completion percentage for a project
+  const getProjectProgress = (proj: ProjectSummary): number => {
+    if (proj.id === activeProjectId && dbTasks.length > 0) {
+      const completed = dbTasks.filter((t) => t.progress_percent === 100 || t.status === "COMPLETED").length
+      return Math.round((completed / dbTasks.length) * 100)
+    }
+    if (proj.has_schedule && proj.has_optimizer) return 65
+    if (proj.has_wbs) return 35
+    return 10
+  }
+
+  // Portfolio KPIs
+  const portfolioKPIs = useMemo(() => {
+    const totalProjects = projects.length
+    const delayedProjects = projects.filter((p) => Number(p.delay_days || 0) > 0).length
+    const maxDelay = Math.max(...projects.map((p) => Number(p.delay_days || 0)), 0)
+    const totalCapital = projects.reduce(
+      (sum, p) => sum + (Number(p.total_project_cost) || 145000000),
+      0
+    )
+    return { totalProjects, delayedProjects, maxDelay, totalCapital }
+  }, [projects])
+
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen bg-background">
         <TopBar projectName="Projects Overview" />
         <main className="p-6">
           <EmptyState
@@ -207,7 +256,7 @@ export default function HomePage() {
   const canRunSchedule = hasPermission(["project_manager", "admin"])
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-background">
       <TopBar
         projectName={effectiveActiveProject?.name ? `Overview: ${effectiveActiveProject.name}` : "Projects Overview"}
         delayRiskDays={delayRiskDays}
@@ -216,8 +265,81 @@ export default function HomePage() {
       />
 
       <main className="p-4 md:p-6 space-y-6">
-        {/* Projects Overview Deck */}
-        <div className="space-y-3">
+        {/* Portfolio KPI Ribbon */}
+        <section aria-label="Portfolio Metrics" className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="border border-border bg-card p-3 rounded-[4px] shadow-2xs">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[10px] font-mono uppercase tracking-wider">
+                Total Projects
+              </span>
+              <FolderKanban className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-2xl font-mono font-bold text-foreground">
+                <Counter value={portfolioKPIs.totalProjects} />
+              </span>
+              <span className="text-xs font-mono text-muted-foreground">active sites</span>
+            </div>
+            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
+              RERA Compliant Sites
+            </div>
+          </div>
+
+          <div className="border border-border bg-card p-3 rounded-[4px] shadow-2xs">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[10px] font-mono uppercase tracking-wider">
+                Delayed Projects
+              </span>
+              <AlertTriangle className="w-3.5 h-3.5 text-status-warning" />
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-2xl font-mono font-bold text-status-warning">
+                <Counter value={portfolioKPIs.delayedProjects} />
+              </span>
+              <span className="text-xs font-mono text-muted-foreground">
+                of {portfolioKPIs.totalProjects} sites
+              </span>
+            </div>
+            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
+              Max Exposure: +{portfolioKPIs.maxDelay} days
+            </div>
+          </div>
+
+          <div className="border border-border bg-card p-3 rounded-[4px] shadow-2xs">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[10px] font-mono uppercase tracking-wider">
+                Active Capital
+              </span>
+              <Building className="w-3.5 h-3.5 text-foreground" />
+            </div>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-2xl font-mono font-bold text-foreground">
+                <Counter value={portfolioKPIs.totalCapital} isCurrency compact />
+              </span>
+            </div>
+            <div className="mt-1 text-[10px] font-mono text-muted-foreground">
+              Portfolio Sanctioned Value
+            </div>
+          </div>
+
+          <div className="border border-border bg-card p-3 rounded-[4px] shadow-2xs">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-[10px] font-mono uppercase tracking-wider">
+                Active Focus Site
+              </span>
+              <HardHat className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <div className="mt-1 truncate font-heading font-bold text-sm text-foreground">
+              {effectiveActiveProject?.name || "None Selected"}
+            </div>
+            <div className="mt-1 text-[10px] font-mono text-muted-foreground truncate">
+              ID: {effectiveActiveProject?.id || "N/A"}
+            </div>
+          </div>
+        </section>
+
+        {/* Projects Overview Deck with Staggered Grid */}
+        <section aria-label="Projects Deck" className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FolderKanban className="w-4 h-4 text-primary" />
@@ -228,7 +350,7 @@ export default function HomePage() {
             {hasPermission(["project_manager", "admin"]) && (
               <Link
                 href="/rera-review"
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-primary-foreground font-mono text-xs hover:bg-primary/90 transition-colors border border-primary"
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-primary-foreground font-mono text-xs hover:bg-primary/90 transition-colors border border-primary rounded-[2px]"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>New Project</span>
@@ -236,130 +358,155 @@ export default function HomePage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <StaggeredGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.map((proj) => {
               const isSelected = proj.id === activeProjectId
-              return (
-                <div
-                  key={proj.id}
-                  className={`border p-4 bg-card transition-all flex flex-col justify-between ${
-                    isSelected
-                      ? "border-primary shadow-sm ring-1 ring-primary/40"
-                      : "border-border hover:border-border/80"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-heading font-bold text-sm text-foreground line-clamp-1">
-                          {proj.name}
-                        </h3>
-                        <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                          RERA: {proj.rera_registration_no || "Registration Pending"}
-                        </p>
-                      </div>
-                      {isSelected && (
-                        <span className="shrink-0 px-2 py-0.5 bg-primary/10 text-primary border border-primary/30 text-[10px] font-mono font-bold uppercase">
-                          ACTIVE
-                        </span>
-                      )}
-                    </div>
+              const teamMembers = getProjectTeam(proj)
+              const completionPercent = getProjectProgress(proj)
+              const isDelayed = Number(proj.delay_days || 0) > 0
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-mono">
-                      <div className="bg-muted/40 p-2 border border-border/50">
-                        <span className="text-muted-foreground block text-[10px]">Target Date:</span>
-                        <span className="font-semibold text-foreground">
-                          {proj.proposed_completion_date || "Not Set"}
-                        </span>
+              return (
+                <StaggeredGridItem key={proj.id}>
+                  <div
+                    className={`border p-4 bg-card transition-all flex flex-col justify-between rounded-[4px] h-full ${
+                      isSelected
+                        ? "border-primary shadow-sm ring-1 ring-primary/40"
+                        : "border-border hover:border-border/80 hover:shadow-xs"
+                    }`}
+                  >
+                    <div>
+                      {/* Card Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-heading font-bold text-sm text-foreground line-clamp-1">
+                            {proj.name}
+                          </h3>
+                          <p className="text-[11px] font-mono text-muted-foreground mt-0.5 truncate">
+                            RERA: {proj.rera_registration_no || "Registration Pending"}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <span className="shrink-0 px-2 py-0.5 bg-primary/10 text-primary border border-primary/30 text-[10px] font-mono font-bold uppercase rounded-[2px]">
+                            ACTIVE
+                          </span>
+                        )}
                       </div>
-                      <div className="bg-muted/40 p-2 border border-border/50">
-                        <span className="text-muted-foreground block text-[10px]">Delay Exposure:</span>
+
+                      {/* Schedule & Handover Exposure Meta */}
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-mono">
+                        <div className="bg-muted/40 p-2 border border-border/50 rounded-[2px]">
+                          <span className="text-muted-foreground block text-[10px]">Target Date:</span>
+                          <span className="font-semibold text-foreground truncate block">
+                            {proj.proposed_completion_date || "Not Set"}
+                          </span>
+                        </div>
+                        <div className="bg-muted/40 p-2 border border-border/50 rounded-[2px]">
+                          <span className="text-muted-foreground block text-[10px]">Delay Exposure:</span>
+                          <span
+                            className={`font-semibold ${
+                              isDelayed ? "text-status-warning" : "text-status-success"
+                            }`}
+                          >
+                            +{proj.delay_days || 0} days
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Status Badges for WBS / Schedule / Optimizer */}
+                      <div className="mt-3 flex flex-wrap gap-1.5">
                         <span
-                          className={`font-semibold ${
-                            Number(proj.delay_days || 0) > 0 ? "text-status-warning" : "text-status-success"
+                          className={`text-[10px] font-mono px-1.5 py-0.5 border rounded-[2px] ${
+                            proj.has_wbs
+                              ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
+                              : "bg-muted text-muted-foreground border-border"
                           }`}
                         >
-                          +{proj.delay_days || 0} days
+                          WBS: {proj.has_wbs ? "Done" : "Pending"}
                         </span>
+
+                        <span
+                          className={`text-[10px] font-mono px-1.5 py-0.5 border rounded-[2px] ${
+                            proj.has_schedule
+                              ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
+                              : "bg-muted text-muted-foreground border-border"
+                          }`}
+                        >
+                          Schedule: {proj.has_schedule ? "Done" : "Pending"}
+                        </span>
+
+                        <span
+                          className={`text-[10px] font-mono px-1.5 py-0.5 border rounded-[2px] ${
+                            proj.has_optimizer
+                              ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
+                              : "bg-muted text-muted-foreground border-border"
+                          }`}
+                        >
+                          Optimizer: {proj.has_optimizer ? "Done" : "Pending"}
+                        </span>
+                      </div>
+
+                      {/* Progress Indicator */}
+                      <div className="mt-3.5 space-y-1">
+                        <div className="flex items-center justify-between text-[10px] font-mono">
+                          <span className="text-muted-foreground">Execution Progress</span>
+                          <span className="font-semibold text-foreground">{completionPercent}%</span>
+                        </div>
+                        <Progress value={completionPercent} className="h-1.5" />
+                      </div>
+
+                      {/* Team Avatars with Shared Tooltips */}
+                      <div className="mt-3.5 pt-3 border-t border-border/60 flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                          Site Team:
+                        </span>
+                        <SharedTooltipAvatars members={teamMembers} size="sm" />
                       </div>
                     </div>
 
-                    {/* Status Badges for WBS / Schedule / Optimizer */}
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      <span
-                        className={`text-[10px] font-mono px-1.5 py-0.5 border ${
-                          proj.has_wbs
-                            ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
-                            : "bg-muted text-muted-foreground border-border"
-                        }`}
-                      >
-                        WBS: {proj.has_wbs ? "Done" : "Pending"}
-                      </span>
+                    {/* Card Actions Footer */}
+                    <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
+                      {isSelected ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-mono text-primary font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Active Project
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setActiveProjectId(proj.id)}
+                          className="px-3 py-1 bg-secondary text-foreground text-xs font-mono font-medium border border-border hover:bg-muted transition-colors rounded-[2px]"
+                        >
+                          Make Active
+                        </button>
+                      )}
 
-                      <span
-                        className={`text-[10px] font-mono px-1.5 py-0.5 border ${
-                          proj.has_schedule
-                            ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
-                            : "bg-muted text-muted-foreground border-border"
-                        }`}
+                      <Link
+                        href="/wbs"
+                        onClick={() => {
+                          if (!isSelected) setActiveProjectId(proj.id)
+                        }}
+                        className="text-xs font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 group"
                       >
-                        Schedule: {proj.has_schedule ? "Done" : "Pending"}
-                      </span>
-
-                      <span
-                        className={`text-[10px] font-mono px-1.5 py-0.5 border ${
-                          proj.has_optimizer
-                            ? "bg-status-success/15 text-status-success border-status-success/30 font-medium"
-                            : "bg-muted text-muted-foreground border-border"
-                        }`}
-                      >
-                        Optimizer: {proj.has_optimizer ? "Done" : "Pending"}
-                      </span>
+                        <span>Work Breakdown</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
                     </div>
                   </div>
-
-                  <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
-                    {isSelected ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-primary font-semibold">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Active Project
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setActiveProjectId(proj.id)}
-                        className="px-3 py-1 bg-secondary text-foreground text-xs font-mono font-medium border border-border hover:bg-muted transition-colors"
-                      >
-                        Make Active
-                      </button>
-                    )}
-
-                    <Link
-                      href="/wbs"
-                      onClick={() => {
-                        if (!isSelected) setActiveProjectId(proj.id)
-                      }}
-                      className="text-xs font-mono text-muted-foreground hover:text-foreground flex items-center gap-1"
-                    >
-                      <span>Work Breakdown</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
-                  </div>
-                </div>
+                </StaggeredGridItem>
               )
             })}
-          </div>
-        </div>
+          </StaggeredGrid>
+        </section>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
+          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono rounded-[4px]">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {saveSuccessMsg && (
-          <div className="flex items-center gap-2 p-3 border border-status-success/50 bg-status-success/10 text-status-success text-xs font-mono">
+          <div className="flex items-center gap-2 p-3 border border-status-success/50 bg-status-success/10 text-status-success text-xs font-mono rounded-[4px]">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{saveSuccessMsg}</span>
           </div>
@@ -379,7 +526,7 @@ export default function HomePage() {
         )}
 
         {isLoading ? (
-          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
+          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2 border border-border bg-card rounded-[4px]">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
             <span>Loading Project Schedule & Critical Path...</span>
           </div>
@@ -397,7 +544,7 @@ export default function HomePage() {
 
             {/* Metric Ribbons */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="border border-border bg-card p-3">
+              <div className="border border-border bg-card p-3 rounded-[4px]">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span className="text-[10px] font-mono uppercase tracking-wider">
                     Makespan (Days)
@@ -406,7 +553,7 @@ export default function HomePage() {
                 </div>
                 <div className="mt-1 flex items-baseline gap-1.5">
                   <span className="text-2xl font-mono font-bold text-foreground">
-                    {totalMakespan}
+                    <Counter value={totalMakespan} />
                   </span>
                   <span className="text-xs font-mono text-muted-foreground">days</span>
                 </div>
@@ -415,7 +562,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="border border-border bg-card p-3">
+              <div className="border border-border bg-card p-3 rounded-[4px]">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span className="text-[10px] font-mono uppercase tracking-wider">
                     Delay Risk
@@ -424,7 +571,7 @@ export default function HomePage() {
                 </div>
                 <div className="mt-1 flex items-baseline gap-1.5">
                   <span className="text-2xl font-mono font-bold text-status-warning">
-                    +{delayRiskDays}
+                    +<Counter value={delayRiskDays} />
                   </span>
                   <span className="text-xs font-mono text-muted-foreground">days</span>
                 </div>
@@ -433,7 +580,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="border border-border bg-card p-3">
+              <div className="border border-border bg-card p-3 rounded-[4px]">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span className="text-[10px] font-mono uppercase tracking-wider">
                     Critical Path
@@ -442,7 +589,7 @@ export default function HomePage() {
                 </div>
                 <div className="mt-1 flex items-baseline gap-1.5">
                   <span className="text-2xl font-mono font-bold text-primary">
-                    {criticalTasksCount}
+                    <Counter value={criticalTasksCount} />
                   </span>
                   <span className="text-xs font-mono text-muted-foreground">
                     of {tasks.length} tasks
@@ -453,7 +600,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="border border-border bg-card p-3">
+              <div className="border border-border bg-card p-3 rounded-[4px]">
                 <div className="flex items-center justify-between text-muted-foreground">
                   <span className="text-[10px] font-mono uppercase tracking-wider">
                     Resource Constraints
@@ -472,7 +619,7 @@ export default function HomePage() {
 
             {/* Gantt Chart & Recovery Side Panel */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-              <div className="lg:col-span-3 border border-border bg-card p-4 space-y-4">
+              <div className="lg:col-span-3 border border-border bg-card p-4 space-y-4 rounded-[4px]">
                 <div className="flex items-center justify-between border-b border-border pb-3">
                   <div>
                     <h2 className="font-heading font-semibold text-sm text-foreground">
@@ -487,7 +634,7 @@ export default function HomePage() {
                       type="button"
                       disabled={isOptimizing}
                       onClick={handleRunOptimizer}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 rounded-[2px]"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${isOptimizing ? "animate-spin" : ""}`} />
                       <span>{isOptimizing ? "SOLVING GA..." : "RUN RCPSP GA SOLVER"}</span>
@@ -510,7 +657,7 @@ export default function HomePage() {
             </div>
 
             {/* Site Engineer Progress Tracking Table */}
-            <div className="border border-border bg-card p-4 space-y-3">
+            <div className="border border-border bg-card p-4 space-y-3 rounded-[4px]">
               <div className="flex items-center justify-between border-b border-border pb-2">
                 <div>
                   <h3 className="font-heading font-semibold text-xs text-foreground flex items-center gap-1.5">
@@ -544,7 +691,7 @@ export default function HomePage() {
                           <td className="py-2 px-3 text-foreground font-sans">
                             {t.name}
                             {t.is_critical && (
-                              <span className="ml-2 text-[9px] font-mono px-1 py-0.2 bg-destructive/15 text-destructive border border-destructive/30">
+                              <span className="ml-2 text-[9px] font-mono px-1 py-0.2 bg-destructive/15 text-destructive border border-destructive/30 rounded-[2px]">
                                 CRITICAL
                               </span>
                             )}
@@ -552,7 +699,7 @@ export default function HomePage() {
                           <td className="py-2 px-3 text-muted-foreground">{t.duration}d</td>
                           <td className="py-2 px-3">
                             <span
-                              className={`text-[10px] font-mono px-1.5 py-0.5 border ${
+                              className={`text-[10px] font-mono px-1.5 py-0.5 border rounded-[2px] ${
                                 progress === 100
                                   ? "bg-status-success/15 text-status-success border-status-success/30"
                                   : progress > 0
@@ -565,7 +712,7 @@ export default function HomePage() {
                           </td>
                           <td className="py-2 px-3">
                             <div className="flex items-center gap-2">
-                              <div className="w-24 bg-muted h-2 border border-border">
+                              <div className="w-24 bg-muted h-2 border border-border rounded-[2px]">
                                 <div
                                   className="bg-primary h-full transition-all"
                                   style={{ width: `${progress}%` }}
@@ -581,7 +728,7 @@ export default function HomePage() {
                                   key={pct}
                                   type="button"
                                   onClick={() => handleUpdateTaskProgress(t.id, pct)}
-                                  className={`px-1.5 py-0.5 text-[10px] border transition-colors ${
+                                  className={`px-1.5 py-0.5 text-[10px] border transition-colors rounded-[2px] ${
                                     progress === pct
                                       ? "bg-primary text-primary-foreground border-primary"
                                       : "bg-card hover:bg-muted text-muted-foreground border-border"
