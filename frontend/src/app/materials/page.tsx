@@ -1,28 +1,34 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useDropzone } from "react-dropzone"
+import { motion, type Variants } from "framer-motion"
 import { getApiUrl } from "@/lib/api"
 import { TopBar } from "@/components/layout/TopBar"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
+import { Counter } from "@/components/ui/Counter"
+import { Badge } from "@/components/ui/badge"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import {
   Receipt,
   Camera,
   UploadCloud,
-  CheckCircle2,
   Paperclip,
   Plus,
-  Coins,
-  Truck,
-  Layers,
-  ShieldCheck,
   AlertCircle,
-  Eye,
   Loader2,
-  Sparkles,
+  Search,
+  Lock,
 } from "lucide-react"
 
 interface MaterialItem {
@@ -53,6 +59,27 @@ interface SitePhotoItem {
   uploaded_at?: string
 }
 
+const CATEGORIES = [
+  "All",
+  "Cement",
+  "Steel / Rebar",
+  "RMC Concrete",
+  "Sand & Aggregates",
+  "AAC Blocks",
+  "Electrical & MEP",
+  "Plumbing",
+  "Paint & Finishes",
+]
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: "easeOut" },
+  },
+}
+
 export default function MaterialsPage() {
   const { user, token, activeProjectId, activeProject, hasPermission } = useAuth()
 
@@ -64,7 +91,11 @@ export default function MaterialsPage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [isClassifying, setIsClassifying] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState<boolean>(false)
+  const [isSheetOpen, setIsSheetOpen] = useState<boolean>(false)
+
+  // Filters
+  const [selectedCategory, setSelectedCategory] = useState<string>("All")
+  const [searchQuery, setSearchQuery] = useState<string>("")
 
   // Material Log Form State
   const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0])
@@ -178,6 +209,22 @@ export default function MaterialsPage() {
     maxFiles: 1,
   })
 
+  // Filtered materials
+  const filteredMaterials = useMemo(() => {
+    return materials.filter((item) => {
+      const matchesCategory =
+        selectedCategory === "All" || item.material_category === selectedCategory
+      const query = searchQuery.toLowerCase().trim()
+      const matchesSearch =
+        !query ||
+        item.vendor_name.toLowerCase().includes(query) ||
+        (item.invoice_number && item.invoice_number.toLowerCase().includes(query)) ||
+        item.item_description.toLowerCase().includes(query) ||
+        (item.wbs_code && item.wbs_code.toLowerCase().includes(query))
+      return matchesCategory && matchesSearch
+    })
+  }, [materials, selectedCategory, searchQuery])
+
   const handleCreateMaterialLog = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeProjectId || !token) return
@@ -212,11 +259,11 @@ export default function MaterialsPage() {
         throw new Error(errData.detail || "Failed to log material delivery.")
       }
 
-      // Reset form
+      // Reset form & close sheet
       setFormDesc("")
       setUploadedBillUrl(null)
       setUploadedBillName(null)
-      setShowAddForm(false)
+      setIsSheetOpen(false)
       await fetchMaterialsAndPhotos()
     } catch (err: any) {
       setError(err.message || "Failed to create material record.")
@@ -265,9 +312,14 @@ export default function MaterialsPage() {
         delayRiskDays={activeProject?.delay_days || 0}
       />
 
-      <main className="p-4 md:p-6 space-y-6">
-        {/* Top Summary Banner */}
-        <div className="border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.main
+        className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full"
+        initial="hidden"
+        animate="visible"
+        variants={pageVariants}
+      >
+        {/* Top Header Card */}
+        <div className="border border-border bg-card p-4 rounded-[4px] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
           <div>
             <h2 className="font-heading font-semibold text-base text-foreground flex items-center gap-2">
               <Receipt className="w-4 h-4 text-primary" />
@@ -278,326 +330,219 @@ export default function MaterialsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {canLogMaterial && (
               <button
                 type="button"
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors"
+                onClick={() => setIsSheetOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors rounded-[4px] shadow-sm cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>{showAddForm ? "CLOSE FORM" : "LOG NEW MATERIAL"}</span>
+                <span>LOG NEW MATERIAL</span>
               </button>
             )}
           </div>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
+          <div className="flex items-center gap-2.5 p-3.5 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono rounded-[4px]">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Add Material Delivery Form (Store Keeper) */}
-        {showAddForm && canLogMaterial && (
-          <form
-            onSubmit={handleCreateMaterialLog}
-            className="border border-primary/50 bg-card p-5 space-y-4"
-          >
-            <div className="text-xs font-mono uppercase text-primary font-semibold border-b border-border pb-2">
-              Record Site Material Receipt & Delivery Challan
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
-              <div>
-                <label className="block text-muted-foreground mb-1">Receipt Date</label>
-                <input
-                  type="date"
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-muted-foreground mb-1">Material Category</label>
-                <select
-                  value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                >
-                  <option value="Cement">Cement (Bags)</option>
-                  <option value="Steel / Rebar">Steel / Rebar (MT)</option>
-                  <option value="RMC Concrete">RMC Concrete (Cu.m)</option>
-                  <option value="Sand & Aggregates">Sand & Aggregates (Brass)</option>
-                  <option value="AAC Blocks">AAC Blocks (Nos)</option>
-                  <option value="Electrical & MEP">Electrical & MEP</option>
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="Paint & Finishes">Paint & Finishes</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-muted-foreground mb-1">Quantity</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={formQty}
-                  onChange={(e) => setFormQty(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-muted-foreground mb-1">Unit of Measure</label>
-                <input
-                  type="text"
-                  value={formUnit}
-                  onChange={(e) => setFormUnit(e.target.value)}
-                  placeholder="Bags, MT, Cu.m, Nos"
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-muted-foreground mb-1">Unit Rate (₹)</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={formRate}
-                  onChange={(e) => setFormRate(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-muted-foreground mb-1">Vendor / Supplier</label>
-                <input
-                  type="text"
-                  value={formVendor}
-                  onChange={(e) => setFormVendor(e.target.value)}
-                  placeholder="e.g. UltraTech Cement Depot"
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-muted-foreground mb-1">Invoice / Challan No</label>
-                <input
-                  type="text"
-                  value={formInvoice}
-                  onChange={(e) => setFormInvoice(e.target.value)}
-                  placeholder="e.g. INV-2026-908"
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-muted-foreground mb-1">Linked WBS Code</label>
-                <input
-                  type="text"
-                  value={formWbs}
-                  onChange={(e) => setFormWbs(e.target.value)}
-                  placeholder="e.g. WBS-1.2"
-                  className="w-full px-3 py-1.5 bg-background border border-border text-foreground"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground mb-1">
-                  Item Description / Grade Specification
-                </label>
-                <input
-                  type="text"
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
-                  placeholder="e.g. M25 Grade Ready Mix Concrete for Podium Casting"
-                  className="w-full px-3 py-1.5 text-xs font-mono bg-background border border-border text-foreground"
-                />
-              </div>
-
-              {/* Bill Attachment Dropzone */}
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground mb-1">
-                  Attach Invoice / Weighbridge Slip (Unparsed Evidence)
-                </label>
-                <div
-                  {...getBillRootProps()}
-                  className="p-3 border border-dashed border-border bg-muted/20 text-center cursor-pointer hover:bg-muted/50 transition-colors"
-                >
-                  <input {...getBillInputProps()} />
-                  <span className="text-[11px] font-mono text-muted-foreground flex items-center justify-center gap-1.5">
-                    <Paperclip className="w-3.5 h-3.5 text-primary" />
-                    <span>{uploadedBillName || "Drop bill PDF/image or click to browse"}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2 border-t border-border">
-              <div className="text-xs font-mono text-muted-foreground">
-                Calculated Line Cost: <span className="font-bold text-foreground">{formatINR(formQty * formRate)}</span>
-              </div>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {isSubmitting ? "SAVING DELIVERY LOG..." : "CONFIRM & LOG MATERIAL"}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Spend KPI Cards */}
+        {/* Spend KPI Cards Ribbon */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 border border-border bg-card">
-            <div className="text-[10px] font-mono uppercase text-muted-foreground">
+          <div className="p-4 border border-border bg-card rounded-[4px] shadow-sm">
+            <div className="text-[10px] font-mono uppercase text-muted-foreground font-medium">
               Total Actual Material Expenditure
             </div>
-            <div className="text-xl font-bold font-mono text-foreground mt-1">
-              {formatINR(totalExpenditure)}
+            <div className="text-2xl font-bold font-mono text-foreground mt-1">
+              <Counter value={totalExpenditure} isCurrency />
             </div>
-            <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+            <div className="text-[11px] font-mono text-muted-foreground mt-1">
               Across {materials.length} verified vendor receipts
             </div>
           </div>
 
-          <div className="p-4 border border-border bg-card">
-            <div className="text-[10px] font-mono uppercase text-muted-foreground">
+          <div className="p-4 border border-border bg-card rounded-[4px] shadow-sm">
+            <div className="text-[10px] font-mono uppercase text-muted-foreground font-medium">
               Categories Tracked
             </div>
-            <div className="text-xl font-bold font-mono text-primary mt-1">
-              {Object.keys(categoryTotals).length} Material Types
+            <div className="text-2xl font-bold font-mono text-primary mt-1">
+              <Counter value={Object.keys(categoryTotals).length} suffix=" Categories" />
             </div>
-            <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
-              Dynamic unit-rate inflation calculated
+            <div className="text-[11px] font-mono text-muted-foreground mt-1">
+              Dynamic unit-rate inflation tracked
             </div>
           </div>
 
-          <div className="p-4 border border-border bg-card">
-            <div className="text-[10px] font-mono uppercase text-muted-foreground">
+          <div className="p-4 border border-border bg-card rounded-[4px] shadow-sm">
+            <div className="text-[10px] font-mono uppercase text-muted-foreground font-medium">
               Audited Site Photos
             </div>
-            <div className="text-xl font-bold font-mono text-foreground mt-1">
-              {photos.length} Captured
+            <div className="text-2xl font-bold font-mono text-foreground mt-1">
+              <Counter value={photos.length} suffix=" Captured" />
             </div>
-            <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+            <div className="text-[11px] font-mono text-muted-foreground mt-1">
               Computer Vision stage verified
             </div>
           </div>
         </div>
 
-        {/* Material Entries Table */}
+        {/* Locked Rule Audit Notice */}
+        <div className="border border-border bg-secondary/40 p-3.5 rounded-[4px] flex items-center justify-between text-xs font-mono">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Lock className="w-3.5 h-3.5 text-primary" />
+            <span>LOCKED RULE: Bill photos and weighbridge slips are stored as unparsed evidentiary records for statutory audit trails.</span>
+          </div>
+          <Badge variant="outline" className="border-border text-[10px] bg-background">
+            EVIDENCE ONLY
+          </Badge>
+        </div>
+
+        {/* Material Entries Table with Category Filter & Search */}
         {isLoading ? (
-          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span>Loading Material Logs...</span>
+          <div className="p-20 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <span className="uppercase tracking-wider">Loading Material Procurement Logs...</span>
           </div>
         ) : materials.length === 0 ? (
           <EmptyState
             title="No Material Invoices Logged for this Project"
             description="Store Keepers can log material delivery slips, invoices, and weighbridge receipts to feed real purchase rates into the Budget vs Actual engine."
             actionLabel={canLogMaterial ? "Log First Material Delivery" : undefined}
-            onAction={canLogMaterial ? () => setShowAddForm(true) : undefined}
+            onAction={canLogMaterial ? () => setIsSheetOpen(true) : undefined}
           />
         ) : (
-          <div className="border border-border bg-card overflow-hidden">
-            <div className="p-3 bg-muted/30 border-b border-border flex items-center justify-between">
-              <span className="font-heading font-semibold text-xs text-foreground">
-                Verified Material Log Entries
-              </span>
-              <span className="text-[10px] font-mono text-muted-foreground">
-                LOCKED RULE: Invoices preserved as unparsed audit evidence
-              </span>
+          <div className="border border-border bg-card rounded-[4px] overflow-hidden shadow-sm space-y-0">
+            {/* Filter and Search Bar */}
+            <div className="p-3.5 bg-muted/20 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-2.5 py-1 text-xs font-mono whitespace-nowrap transition-colors rounded-[4px] border ${
+                      selectedCategory === cat
+                        ? "bg-primary text-primary-foreground border-primary font-bold"
+                        : "bg-background text-muted-foreground border-border hover:bg-secondary/60"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Box */}
+              <div className="relative w-full md:w-64">
+                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search vendor, invoice, spec..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full text-xs font-mono bg-background border border-border pl-8 pr-3 py-1.5 text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                />
+              </div>
             </div>
 
+            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-b border-border">
+              <table className="w-full text-left text-xs font-mono border-collapse">
+                <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground border-b border-border">
                   <tr>
-                    <th className="py-2 px-3">Entry ID</th>
-                    <th className="py-2 px-3">Date</th>
-                    <th className="py-2 px-3">Category</th>
-                    <th className="py-2 px-3">Description</th>
-                    <th className="py-2 px-3">Quantity</th>
-                    <th className="py-2 px-3">Unit Rate</th>
-                    <th className="py-2 px-3">Total Amount</th>
-                    <th className="py-2 px-3">Vendor / Invoice</th>
-                    <th className="py-2 px-3">Evidence</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Entry ID</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Date</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Category</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Description</th>
+                    <th className="py-2.5 px-3.5 font-semibold text-right">Quantity</th>
+                    <th className="py-2.5 px-3.5 font-semibold text-right">Unit Rate</th>
+                    <th className="py-2.5 px-3.5 font-semibold text-right">Total Amount</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Vendor / Invoice</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Evidence Proof</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/60">
-                  {materials.map((m) => (
-                    <tr key={m.entry_id} className="hover:bg-muted/30">
-                      <td className="py-2 px-3 font-semibold text-primary">{m.entry_id}</td>
-                      <td className="py-2 px-3 text-muted-foreground">{m.date}</td>
-                      <td className="py-2 px-3">
-                        <span className="px-1.5 py-0.5 bg-secondary border border-border text-[10px]">
-                          {m.material_category}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-foreground font-sans max-w-xs truncate">
-                        {m.item_description}
-                      </td>
-                      <td className="py-2 px-3 font-semibold text-foreground">
-                        {m.quantity.toLocaleString()} {m.unit}
-                      </td>
-                      <td className="py-2 px-3 text-muted-foreground">₹{m.unit_rate.toLocaleString()}</td>
-                      <td className="py-2 px-3 font-semibold text-foreground">{formatINR(m.total_cost)}</td>
-                      <td className="py-2 px-3 text-muted-foreground">
-                        <div>{m.vendor_name}</div>
-                        <div className="text-[10px] text-muted-foreground/80">{m.invoice_number}</div>
-                      </td>
-                      <td className="py-2 px-3">
-                        {m.bill_photo_url ? (
-                          <a
-                            href={m.bill_photo_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
-                          >
-                            <Paperclip className="w-3 h-3" />
-                            <span>View Bill</span>
-                          </a>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground/60">—</span>
-                        )}
+                <tbody className="divide-y divide-border">
+                  {filteredMaterials.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-8 text-center text-muted-foreground font-mono">
+                        No material entries match category &apos;{selectedCategory}&apos; or search query.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredMaterials.map((m) => (
+                      <tr key={m.entry_id} className="hover:bg-muted/20 transition-colors">
+                        <td className="py-3 px-3.5 font-bold text-primary">{m.entry_id}</td>
+                        <td className="py-3 px-3.5 text-muted-foreground">{m.date}</td>
+                        <td className="py-3 px-3.5">
+                          <span className="px-2 py-0.5 bg-secondary border border-border text-[10px] rounded-[3px]">
+                            {m.material_category}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3.5 text-foreground font-sans font-medium max-w-xs truncate">
+                          {m.item_description}
+                        </td>
+                        <td className="py-3 px-3.5 text-right font-bold text-foreground">
+                          {m.quantity.toLocaleString()} {m.unit}
+                        </td>
+                        <td className="py-3 px-3.5 text-right text-muted-foreground">
+                          {formatINR(m.unit_rate)}
+                        </td>
+                        <td className="py-3 px-3.5 text-right font-bold text-foreground">
+                          {formatINR(m.total_cost)}
+                        </td>
+                        <td className="py-3 px-3.5 text-muted-foreground">
+                          <div className="text-foreground font-medium">{m.vendor_name}</div>
+                          <div className="text-[10px] text-muted-foreground/80">{m.invoice_number}</div>
+                        </td>
+                        <td className="py-3 px-3.5">
+                          {m.bill_photo_url ? (
+                            <a
+                              href={m.bill_photo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-semibold"
+                            >
+                              <Paperclip className="w-3.5 h-3.5" />
+                              <span>View Slip</span>
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/60 font-mono">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="p-3 bg-muted/10 border-t border-border flex items-center justify-between text-xs font-mono text-muted-foreground">
+              <span>Showing {filteredMaterials.length} of {materials.length} receipts</span>
+              <span>Total Displayed: {formatINR(filteredMaterials.reduce((acc, curr) => acc + curr.total_cost, 0))}</span>
             </div>
           </div>
         )}
 
         {/* Site Photos & Classification Section */}
-        <div className="border border-border bg-card p-4 space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="border border-border bg-card p-4 rounded-[4px] space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
             <div>
-              <h3 className="font-heading font-semibold text-xs text-foreground flex items-center gap-1.5">
+              <h3 className="font-heading font-semibold text-xs text-foreground flex items-center gap-1.5 uppercase tracking-wider">
                 <Camera className="w-3.5 h-3.5 text-primary" />
                 <span>Site Inspection Photos & Structural Stage Classifier</span>
               </h3>
               <p className="text-[11px] font-mono text-muted-foreground">
-                Computer Vision heuristics classify rebar grid density vs planar finishing surfaces.
+                Computer Vision heuristics classify rebar grid density vs planar finishing surfaces
               </p>
             </div>
 
             {canUploadPhoto && (
               <div
                 {...getPhotoRootProps()}
-                className="px-3 py-1.5 bg-secondary border border-border text-foreground hover:bg-muted cursor-pointer text-xs font-mono font-medium flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-secondary border border-border text-foreground hover:bg-secondary/80 cursor-pointer text-xs font-mono font-medium flex items-center gap-1.5 rounded-[4px] transition-colors self-start sm:self-auto shadow-sm"
               >
                 <input {...getPhotoInputProps()} />
                 {isClassifying ? (
@@ -611,35 +556,35 @@ export default function MaterialsPage() {
           </div>
 
           {photos.length === 0 ? (
-            <div className="p-6 border border-dashed border-border text-center text-xs font-mono text-muted-foreground">
+            <div className="p-8 border border-dashed border-border text-center text-xs font-mono text-muted-foreground rounded-[4px]">
               No site photos uploaded for this project yet. Site Engineers can upload photos to verify work progress.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {photos.map((p) => (
-                <div key={p.id} className="border border-border bg-background p-3 space-y-2">
-                  <div className="aspect-video bg-muted/40 relative overflow-hidden border border-border flex items-center justify-center">
+                <div key={p.id} className="border border-border bg-background p-3 space-y-2 rounded-[4px] shadow-xs">
+                  <div className="aspect-video bg-muted/30 relative overflow-hidden border border-border rounded-[2px] flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={p.photo_url}
                       alt={p.stage_label}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        // Fallback placeholder if image not reachable
                         ;(e.target as any).style.display = "none"
                       }}
                     />
-                    <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-background/90 border border-border text-[9px] font-mono">
+                    <div className="absolute top-2 right-2 px-2 py-0.5 bg-background/95 border border-border text-[10px] font-mono font-bold rounded-[3px] shadow-xs">
                       {Math.round(p.confidence_score * 100)}% CONFIDENCE
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-foreground">{p.stage_label}</div>
-                    <div className="text-[10px] font-mono text-muted-foreground">
+                    <div className="text-xs font-semibold text-foreground font-heading">{p.stage_label}</div>
+                    <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
                       Stage: <span className="font-bold text-primary">{p.predicted_stage}</span>
                     </div>
                     {p.uploaded_at && (
-                      <div className="text-[9px] font-mono text-muted-foreground mt-0.5">
-                        {new Date(p.uploaded_at).toLocaleDateString()}
+                      <div className="text-[10px] font-mono text-muted-foreground mt-1">
+                        Recorded: {new Date(p.uploaded_at).toLocaleDateString()}
                       </div>
                     )}
                   </div>
@@ -648,7 +593,169 @@ export default function MaterialsPage() {
             </div>
           )}
         </div>
-      </main>
+
+        {/* Slide-Over Sheet for Logging Material Delivery */}
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetContent side="right" className="overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Record Material Delivery Receipt</SheetTitle>
+              <SheetDescription>
+                Log physical delivery challan or weighbridge receipt to calibrate project cost slopes.
+              </SheetDescription>
+            </SheetHeader>
+
+            <form onSubmit={handleCreateMaterialLog} className="space-y-4 py-4 text-xs font-mono">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">Receipt Date</label>
+                <input
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">Material Category</label>
+                <select
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                >
+                  <option value="Cement">Cement (Bags)</option>
+                  <option value="Steel / Rebar">Steel / Rebar (MT)</option>
+                  <option value="RMC Concrete">RMC Concrete (Cu.m)</option>
+                  <option value="Sand & Aggregates">Sand & Aggregates (Brass)</option>
+                  <option value="AAC Blocks">AAC Blocks (Nos)</option>
+                  <option value="Electrical & MEP">Electrical & MEP</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="Paint & Finishes">Paint & Finishes</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase text-muted-foreground block font-medium">Quantity</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={formQty}
+                    onChange={(e) => setFormQty(parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase text-muted-foreground block font-medium">Unit of Measure</label>
+                  <input
+                    type="text"
+                    value={formUnit}
+                    onChange={(e) => setFormUnit(e.target.value)}
+                    placeholder="Bags, MT, Cu.m"
+                    className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">Unit Rate (₹)</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formRate}
+                  onChange={(e) => setFormRate(parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">Vendor / Supplier</label>
+                <input
+                  type="text"
+                  value={formVendor}
+                  onChange={(e) => setFormVendor(e.target.value)}
+                  placeholder="e.g. UltraTech Cement Depot"
+                  className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">Invoice / Challan No</label>
+                <input
+                  type="text"
+                  value={formInvoice}
+                  onChange={(e) => setFormInvoice(e.target.value)}
+                  placeholder="e.g. INV-2026-908"
+                  className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">Linked WBS Code</label>
+                <input
+                  type="text"
+                  value={formWbs}
+                  onChange={(e) => setFormWbs(e.target.value)}
+                  placeholder="e.g. WBS-1.2"
+                  className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">Item Description / Spec</label>
+                <input
+                  type="text"
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
+                  placeholder="e.g. OPC 53 Grade Cement for Slab Casting"
+                  className="w-full px-3 py-2 bg-background border border-border text-foreground rounded-[4px] focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* Bill Attachment Dropzone */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-[10px] uppercase text-muted-foreground block font-medium">
+                  Attach Invoice / Weighbridge Slip
+                </label>
+                <div
+                  {...getBillRootProps()}
+                  className="p-4 border border-dashed border-border bg-muted/20 text-center cursor-pointer hover:bg-muted/40 transition-colors rounded-[4px]"
+                >
+                  <input {...getBillInputProps()} />
+                  <span className="text-[11px] font-mono text-muted-foreground flex items-center justify-center gap-1.5">
+                    <Paperclip className="w-4 h-4 text-primary" />
+                    <span>{uploadedBillName || "Drop bill PDF/image or click to browse"}</span>
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground/75 block">
+                  Preserved as unparsed evidence for statutory auditing.
+                </span>
+              </div>
+
+              <div className="p-3 bg-secondary/50 border border-border rounded-[4px] flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Calculated Line Cost:</span>
+                <span className="font-bold text-foreground text-sm">{formatINR(formQty * formRate)}</span>
+              </div>
+
+              <SheetFooter className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-2 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors rounded-[4px] disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {isSubmitting ? "SAVING DELIVERY LOG..." : "CONFIRM & LOG MATERIAL"}
+                </button>
+              </SheetFooter>
+            </form>
+          </SheetContent>
+        </Sheet>
+      </motion.main>
     </div>
   )
 }
