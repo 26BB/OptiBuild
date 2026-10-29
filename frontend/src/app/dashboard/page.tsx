@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
+import { motion, type Variants } from "framer-motion"
 import {
   ResponsiveContainer,
   LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -20,21 +19,17 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth } from "@/context/AuthContext"
 import { formatINR } from "@/lib/utils"
+import { Counter } from "@/components/ui/Counter"
+import { Badge } from "@/components/ui/badge"
 import {
   PieChart as PieIcon,
-  TrendingDown,
-  TrendingUp,
-  Coins,
-  CheckCircle2,
   RefreshCw,
-  Layers,
-  Activity,
   Sliders,
   AlertTriangle,
   ArrowRight,
-  ShieldCheck,
   Loader2,
-  Calendar,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react"
 
 interface CategoryMetric {
@@ -73,6 +68,15 @@ interface DashboardData {
   s_curve_data: SCurvePoint[]
   recalibration_available: boolean
   recalibrated_tasks: RecalibratedTask[]
+}
+
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: "easeOut" },
+  },
 }
 
 export default function DashboardPage() {
@@ -182,9 +186,14 @@ export default function DashboardPage() {
         delayRiskDays={delayDays}
       />
 
-      <main className="p-4 md:p-6 space-y-6">
-        {/* Top Header */}
-        <div className="border border-border bg-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <motion.main
+        className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full"
+        initial="hidden"
+        animate="visible"
+        variants={pageVariants}
+      >
+        {/* Top Header Card */}
+        <div className="border border-border bg-card p-4 rounded-[4px] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
           <div>
             <h2 className="font-heading font-semibold text-base text-foreground flex items-center gap-2">
               <PieIcon className="w-4 h-4 text-primary" />
@@ -197,13 +206,13 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {canRecalibrate && (
               <button
                 type="button"
                 disabled={isRecalibrating}
                 onClick={handleRecalibrate}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-border text-foreground hover:bg-muted font-mono text-xs font-medium transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-border text-foreground hover:bg-secondary/80 font-mono text-xs font-medium transition-colors rounded-[4px] disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRecalibrating ? "animate-spin" : ""}`} />
                 <span>{isRecalibrating ? "RECALIBRATING..." : "RECALIBRATE FROM INVOICES"}</span>
@@ -212,7 +221,7 @@ export default function DashboardPage() {
 
             <Link
               href="/materials"
-              className="px-3 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors"
+              className="px-3.5 py-1.5 bg-primary text-primary-foreground font-mono text-xs font-medium hover:bg-primary/90 transition-colors rounded-[4px] shadow-sm"
             >
               View Material Logs
             </Link>
@@ -220,7 +229,7 @@ export default function DashboardPage() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono">
+          <div className="flex items-center gap-2.5 p-3.5 border border-destructive/50 bg-destructive/10 text-destructive text-xs font-mono rounded-[4px]">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -228,31 +237,33 @@ export default function DashboardPage() {
 
         {/* Owner / Executive Delay & Statutory Penalty Alert */}
         {(isOwner || delayDays > 0) && (
-          <div className="border border-destructive/40 bg-destructive/5 p-4 space-y-2">
+          <div className="border border-destructive/30 bg-destructive/[0.04] p-4 rounded-[4px] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-destructive font-heading font-semibold text-xs tracking-wider uppercase">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>Statutory MahaRERA Delay Exposure Alert</span>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 bg-destructive/15 text-destructive border border-destructive/30">
+              <Badge variant="outline" className="border-destructive/30 bg-destructive/15 text-destructive font-bold text-[10px] font-mono">
                 RULE 18 ENFORCEMENT
-              </span>
+              </Badge>
             </div>
             <p className="text-xs font-sans text-muted-foreground leading-relaxed">
-              Section 18 mandates compensation at SBI MCLR + 2% (currently 10.85% p.a.) on buyer funds for every day of delay past contractual handover.
+              MahaRERA Section 18 mandates interest compensation at SBI MCLR + 2% (currently 10.85% p.a.) on allottee investment funds for every calendar day of delay past contractual possession date.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs font-mono">
-              <div className="p-2.5 bg-card border border-border">
-                <div className="text-[10px] text-muted-foreground uppercase">Project Delay</div>
-                <div className="text-base font-bold text-destructive">+{delayDays} Days</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs font-mono">
+              <div className="p-3 bg-card border border-border rounded-[4px]">
+                <div className="text-[10px] text-muted-foreground uppercase font-medium">Project Delay</div>
+                <div className="text-base font-bold text-destructive mt-0.5">+{delayDays} Days</div>
               </div>
-              <div className="p-2.5 bg-card border border-border">
-                <div className="text-[10px] text-muted-foreground uppercase">Statutory Daily Penalty</div>
-                <div className="text-base font-bold text-foreground">{formatINR(dailyPenalty)} / day</div>
+              <div className="p-3 bg-card border border-border rounded-[4px]">
+                <div className="text-[10px] text-muted-foreground uppercase font-medium">Statutory Daily Liability</div>
+                <div className="text-base font-bold text-foreground mt-0.5">{formatINR(dailyPenalty)} / day</div>
               </div>
-              <div className="p-2.5 bg-card border border-border">
-                <div className="text-[10px] text-muted-foreground uppercase">Cumulative Penalty Risk</div>
-                <div className="text-base font-bold text-destructive">{formatINR(totalPenaltyExposure)}</div>
+              <div className="p-3 bg-card border border-border rounded-[4px]">
+                <div className="text-[10px] text-muted-foreground uppercase font-medium">Cumulative Penalty Exposure</div>
+                <div className="text-base font-bold text-destructive mt-0.5">
+                  <Counter value={totalPenaltyExposure} isCurrency />
+                </div>
               </div>
             </div>
             <div className="pt-1 flex items-center justify-end">
@@ -260,7 +271,7 @@ export default function DashboardPage() {
                 href="/optimizer"
                 className="inline-flex items-center gap-1.5 text-xs font-mono text-primary hover:underline font-semibold"
               >
-                <span>Run Penalty vs Crash Cost Optimization</span>
+                <span>Run Delay Penalty vs Schedule Crashing Analysis</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -268,9 +279,9 @@ export default function DashboardPage() {
         )}
 
         {isLoading ? (
-          <div className="p-12 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span>Loading Financial Analytics & S-Curve...</span>
+          <div className="p-20 text-center text-xs font-mono text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <span className="uppercase tracking-wider">Loading Financial Analytics & S-Curve...</span>
           </div>
         ) : !dashboardData || dashboardData.total_planned_budget === 0 ? (
           <EmptyState
@@ -282,110 +293,136 @@ export default function DashboardPage() {
         ) : (
           <>
             {/* Primary Metrics Ribbon */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 border border-border bg-card">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 border border-border bg-card rounded-[4px] shadow-sm">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground font-medium">
                   Planned Budget
                 </div>
-                <div className="text-xl font-bold font-mono text-foreground mt-1">
-                  {formatINR(dashboardData.total_planned_budget)}
+                <div className="text-2xl font-bold font-mono text-foreground mt-1">
+                  <Counter value={dashboardData.total_planned_budget} isCurrency />
                 </div>
-                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                <div className="text-[11px] font-mono text-muted-foreground mt-1">
                   WBS Parametric Baseline
                 </div>
               </div>
 
-              <div className="p-4 border border-border bg-card">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+              <div className="p-4 border border-border bg-card rounded-[4px] shadow-sm">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground font-medium">
                   Actual Material Spent
                 </div>
-                <div className="text-xl font-bold font-mono text-primary mt-1">
-                  {formatINR(dashboardData.total_actual_spent)}
+                <div className="text-2xl font-bold font-mono text-primary mt-1">
+                  <Counter value={dashboardData.total_actual_spent} isCurrency />
                 </div>
-                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                <div className="text-[11px] font-mono text-muted-foreground mt-1">
                   From site delivery receipts
                 </div>
               </div>
 
-              <div className="p-4 border border-border bg-card">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+              <div className="p-4 border border-border bg-card rounded-[4px] shadow-sm">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground font-medium">
                   Budget Variance
                 </div>
                 <div
-                  className={`text-xl font-bold font-mono mt-1 ${
+                  className={`text-2xl font-bold font-mono mt-1 ${
                     dashboardData.total_variance >= 0 ? "text-status-success" : "text-destructive"
                   }`}
                 >
-                  {formatINR(dashboardData.total_variance)}
+                  <Counter
+                    value={Math.abs(dashboardData.total_variance)}
+                    isCurrency
+                    prefix={dashboardData.total_variance >= 0 ? "+ " : "- "}
+                  />
                 </div>
-                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                  {dashboardData.total_variance >= 0 ? "Under allocated budget" : "Cost overrun alert"}
+                <div className="text-[11px] font-mono text-muted-foreground mt-1 flex items-center gap-1">
+                  {dashboardData.total_variance >= 0 ? (
+                    <>
+                      <TrendingDown className="w-3.5 h-3.5 text-status-success" />
+                      <span>Under allocated budget</span>
+                    </>
+                  ) : (
+                    <>
+                      <TrendingUp className="w-3.5 h-3.5 text-destructive" />
+                      <span>Cost overrun alert</span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div className="p-4 border border-border bg-card">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">
+              <div className="p-4 border border-border bg-card rounded-[4px] shadow-sm">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground font-medium">
                   Budget Utilization
                 </div>
-                <div className="text-xl font-bold font-mono text-foreground mt-1">
-                  {dashboardData.budget_utilization_percent}%
+                <div className="text-2xl font-bold font-mono text-foreground mt-1">
+                  <Counter value={dashboardData.budget_utilization_percent} suffix="%" />
                 </div>
-                <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                <div className="text-[11px] font-mono text-muted-foreground mt-1">
                   Overall construction spend
                 </div>
               </div>
             </div>
 
-            {/* S-Curve Chart */}
-            <div className="border border-border bg-card p-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-3">
+            {/* S-Curve Chart (Restyled only with design tokens per Rule 4) */}
+            <div className="border border-border bg-card p-5 rounded-[4px] space-y-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
                 <div>
-                  <h3 className="font-heading font-semibold text-sm text-foreground">
+                  <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wider">
                     12-Month S-Curve Progress (Planned vs Actual Cumulative Spend)
                   </h3>
                   <p className="text-[11px] font-mono text-muted-foreground">
                     Cumulative cashflow projection vs real site invoices
                   </p>
                 </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 border border-border bg-secondary/50 rounded-[4px] self-start sm:self-auto">
+                  EARNED VALUE ANALYSIS
+                </span>
               </div>
 
               <div className="h-64 sm:h-80 w-full pt-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dashboardData.s_curve_data}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                  <LineChart data={dashboardData.s_curve_data} margin={{ top: 10, right: 24, left: 16, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" opacity={0.6} />
                     <XAxis
                       dataKey="month"
-                      tick={{ fill: "currentColor", fontSize: 10, fontFamily: "monospace" }}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 10, fontFamily: "var(--font-mono)" }}
                     />
                     <YAxis
-                      tickFormatter={(val) => `₹${(val / 10000000).toFixed(1)}Cr`}
-                      tick={{ fill: "currentColor", fontSize: 10, fontFamily: "monospace" }}
+                      tickFormatter={(val) => formatINR(val, true)}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 10, fontFamily: "var(--font-mono)" }}
                     />
                     <Tooltip
-                      formatter={(val: any) => [formatINR(Number(val)), "Spend"]}
+                      formatter={(val: any) => [formatINR(Number(val) || 0), "Spend"]}
                       contentStyle={{
                         backgroundColor: "var(--card)",
                         borderColor: "var(--border)",
+                        borderRadius: "4px",
                         fontSize: "11px",
-                        fontFamily: "monospace",
+                        fontFamily: "var(--font-mono)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                       }}
                     />
-                    <Legend wrapperStyle={{ fontSize: "11px", fontFamily: "monospace" }} />
+                    <Legend
+                      wrapperStyle={{
+                        fontSize: "11px",
+                        fontFamily: "var(--font-mono)",
+                        paddingTop: "8px",
+                      }}
+                    />
                     <Line
                       type="monotone"
                       dataKey="planned_cumulative"
                       name="Planned Cumulative Budget"
-                      stroke="#4F75FF"
+                      stroke="#5C6470"
                       strokeWidth={2}
+                      strokeDasharray="4 4"
                       dot={false}
                     />
                     <Line
                       type="monotone"
                       dataKey="actual_cumulative"
                       name="Actual Cumulative Spend"
-                      stroke="#22c55e"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
+                      stroke="#E8590C"
+                      strokeWidth={2.5}
+                      dot={{ r: 3.5, fill: "#E8590C" }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -393,47 +430,52 @@ export default function DashboardPage() {
             </div>
 
             {/* Package Breakdown Table */}
-            <div className="border border-border bg-card overflow-hidden">
-              <div className="p-3 bg-muted/30 border-b border-border flex items-center justify-between">
-                <span className="font-heading font-semibold text-xs text-foreground">
-                  Work Package Level Budget Allocation vs Actual Spent
-                </span>
-                <span className="text-[10px] font-mono text-muted-foreground">
-                  6 MahaRERA Construction Packages
+            <div className="border border-border bg-card rounded-[4px] overflow-hidden shadow-sm">
+              <div className="p-3.5 bg-muted/20 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="font-heading font-semibold text-xs text-foreground uppercase tracking-wider">
+                    Work Package Level Budget Allocation vs Actual Spent
+                  </h3>
+                  <p className="text-[11px] font-mono text-muted-foreground">
+                    Statutory MahaRERA Construction Packages
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 border border-border bg-background rounded-[4px]">
+                  {dashboardData.categories.length} PACKAGES
                 </span>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-b border-border">
+                <table className="w-full text-left text-xs font-mono border-collapse">
+                  <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground border-b border-border">
                     <tr>
-                      <th className="py-2 px-3">Work Package</th>
-                      <th className="py-2 px-3">Planned Budget</th>
-                      <th className="py-2 px-3">Actual Spent</th>
-                      <th className="py-2 px-3">Variance</th>
-                      <th className="py-2 px-3">Utilization</th>
+                      <th className="py-2.5 px-3.5 font-semibold">Work Package</th>
+                      <th className="py-2.5 px-3.5 font-semibold text-right">Planned Budget</th>
+                      <th className="py-2.5 px-3.5 font-semibold text-right">Actual Spent</th>
+                      <th className="py-2.5 px-3.5 font-semibold text-right">Variance</th>
+                      <th className="py-2.5 px-3.5 font-semibold text-right">Utilization</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-border">
                     {dashboardData.categories.map((c, idx) => (
-                      <tr key={idx} className="hover:bg-muted/30">
-                        <td className="py-2.5 px-3 font-medium text-foreground">{c.category_name}</td>
-                        <td className="py-2.5 px-3">{formatINR(c.planned_budget)}</td>
-                        <td className="py-2.5 px-3 text-primary font-semibold">{formatINR(c.actual_spent)}</td>
-                        <td className="py-2.5 px-3 font-medium">
-                          <span className={c.variance >= 0 ? "text-status-success" : "text-destructive"}>
+                      <tr key={idx} className="hover:bg-muted/20 transition-colors">
+                        <td className="py-3 px-3.5 font-sans font-medium text-foreground">{c.category_name}</td>
+                        <td className="py-3 px-3.5 text-right">{formatINR(c.planned_budget)}</td>
+                        <td className="py-3 px-3.5 text-right text-primary font-bold">{formatINR(c.actual_spent)}</td>
+                        <td className="py-3 px-3.5 text-right font-medium">
+                          <span className={c.variance >= 0 ? "text-status-success font-bold" : "text-destructive font-bold"}>
                             {formatINR(c.variance)}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 bg-muted h-2 border border-border">
+                        <td className="py-3 px-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-20 bg-muted h-2 border border-border rounded-[2px] overflow-hidden">
                               <div
-                                className="bg-primary h-full"
+                                className="bg-primary h-full transition-all"
                                 style={{ width: `${Math.min(100, c.percentage_utilized)}%` }}
                               />
                             </div>
-                            <span className="text-[11px] font-semibold">{c.percentage_utilized}%</span>
+                            <span className="text-[11px] font-semibold w-9 text-right">{c.percentage_utilized}%</span>
                           </div>
                         </td>
                       </tr>
@@ -445,47 +487,50 @@ export default function DashboardPage() {
 
             {/* Recalibrated Critical Crash Slopes Section */}
             {dashboardData.recalibrated_tasks.length > 0 && (
-              <div className="border border-border bg-card p-4 space-y-3">
-                <div className="flex items-center justify-between border-b border-border pb-2">
+              <div className="border border-border bg-card p-4 rounded-[4px] space-y-3 shadow-sm">
+                <div className="flex items-center justify-between border-b border-border pb-2.5">
                   <div>
-                    <h3 className="font-heading font-semibold text-xs text-foreground flex items-center gap-1.5">
+                    <h3 className="font-heading font-semibold text-xs text-foreground flex items-center gap-1.5 uppercase tracking-wider">
                       <Sliders className="w-3.5 h-3.5 text-primary" />
                       <span>Recalibrated Critical Activity Crash Costs (Site Invoice Feedback)</span>
                     </h3>
                     <p className="text-[11px] font-mono text-muted-foreground">
-                      Crash-cost slopes adjusted dynamically using actual site purchase invoices.
+                      Crash-cost slopes adjusted dynamically using actual site purchase delivery invoices
                     </p>
                   </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 border border-border bg-secondary/50 rounded-[4px]">
+                    FEEDBACK LOOP ACTIVE
+                  </span>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs font-mono">
-                    <thead className="bg-muted/40 text-[10px] uppercase text-muted-foreground border-b border-border">
+                  <table className="w-full text-left text-xs font-mono border-collapse">
+                    <thead className="bg-muted/30 text-[10px] uppercase text-muted-foreground border-b border-border">
                       <tr>
-                        <th className="py-2 px-3">Activity ID</th>
-                        <th className="py-2 px-3">Task Title</th>
-                        <th className="py-2 px-3">Baseline Slope (₹/day)</th>
-                        <th className="py-2 px-3">Recalibrated Slope (₹/day)</th>
-                        <th className="py-2 px-3">Material Factor</th>
-                        <th className="py-2 px-3">Slope Variance</th>
+                        <th className="py-2.5 px-3.5 font-semibold">Activity ID</th>
+                        <th className="py-2.5 px-3.5 font-semibold">Task Title</th>
+                        <th className="py-2.5 px-3.5 font-semibold text-right">Baseline Slope</th>
+                        <th className="py-2.5 px-3.5 font-semibold text-right">Recalibrated Slope</th>
+                        <th className="py-2.5 px-3.5 font-semibold text-right">Material Factor</th>
+                        <th className="py-2.5 px-3.5 font-semibold text-right">Slope Variance</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border/60">
+                    <tbody className="divide-y divide-border">
                       {dashboardData.recalibrated_tasks.map((task) => (
-                        <tr key={task.task_id} className="hover:bg-muted/30">
-                          <td className="py-2 px-3 font-semibold text-primary">{task.task_id}</td>
-                          <td className="py-2 px-3 text-foreground font-sans">{task.task_name}</td>
-                          <td className="py-2 px-3 text-muted-foreground">₹{task.baseline_crash_slope.toLocaleString()}</td>
-                          <td className="py-2 px-3 font-semibold text-foreground">
-                            ₹{task.recalibrated_crash_slope.toLocaleString()}
+                        <tr key={task.task_id} className="hover:bg-muted/20 transition-colors">
+                          <td className="py-3 px-3.5 font-bold text-primary">{task.task_id}</td>
+                          <td className="py-3 px-3.5 text-foreground font-sans font-medium">{task.task_name}</td>
+                          <td className="py-3 px-3.5 text-right text-muted-foreground">{formatINR(task.baseline_crash_slope)}/d</td>
+                          <td className="py-3 px-3.5 text-right font-bold text-foreground">
+                            {formatINR(task.recalibrated_crash_slope)}/d
                           </td>
-                          <td className="py-2 px-3 text-muted-foreground">{task.material_factor_applied}x</td>
-                          <td className="py-2 px-3">
+                          <td className="py-3 px-3.5 text-right text-muted-foreground">{task.material_factor_applied}x</td>
+                          <td className="py-3 px-3.5 text-right">
                             <span
                               className={
                                 task.change_percent > 0
-                                  ? "text-status-warning font-semibold"
-                                  : "text-status-success font-semibold"
+                                  ? "text-status-warning font-bold"
+                                  : "text-status-success font-bold"
                               }
                             >
                               {task.change_percent > 0 ? `+${task.change_percent}%` : `${task.change_percent}%`}
@@ -500,7 +545,7 @@ export default function DashboardPage() {
             )}
           </>
         )}
-      </main>
+      </motion.main>
     </div>
   )
 }
