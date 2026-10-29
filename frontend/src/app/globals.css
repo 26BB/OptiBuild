@@ -137,3 +137,30 @@
     linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
+
+
+/* Gantt Task React Blueprint Overrides */
+._3_ygE {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+}
+._34vdg {
+  stroke: var(--border) !important;
+}
+._24TwP, ._2q4Zw {
+  fill: var(--card) !important;
+  stroke: var(--border) !important;
+}
+._1n_pn {
+  fill: var(--muted-foreground) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+}
+._29r2b {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+}
+._3rUKi {
+  color: var(--foreground) !important;
+  font-family: var(--font-mono) !important;
+}

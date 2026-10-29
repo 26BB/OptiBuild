@@ -145,8 +145,8 @@ The baseline OptiBuild user interface functions mechanically, but looks generic,
 | **—** | *Checkpoint Review & User Approval* | **Approved** | — | — | `437f100` |
 | **3** | Page 4: Projects Overview (`/`) | **Completed** | Passed | Passed | `fb0a9b0` |
 | **4** | Page 5: MahaRERA Upload & 4-Step Stepper (`/rera-review`) | **Completed** | Passed | Passed | `3697d9c` |
-| **5** | Page 6: WBS Breakdown & Costing Table (`/wbs`) | **Completed** | Passed | Passed | Pending Push |
-| **6** | Page 7: Schedule & Gantt Restyling (`/wbs`) | **Pending** | Pending | Pending | — |
+| **5** | Page 6: WBS Breakdown & Costing Table (`/wbs`) | **Completed** | Passed | Passed | `f437c6d` |
+| **6** | Page 7: Schedule & Gantt Restyling (`/wbs`) | **Completed** | Passed | Passed | Pending Push |
 | **7** | Page 8: Delay Recovery Optimizer (`/optimizer`) | **Pending** | Pending | Pending | — |
 | **8** | Page 9: Executive & Role Dashboard (`/dashboard`) | **Pending** | Pending | Pending | — |
 | **9** | Page 10: Materials & Site Photos (`/materials`) | **Pending** | Pending | Pending | — |
