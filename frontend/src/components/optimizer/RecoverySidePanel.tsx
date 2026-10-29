@@ -52,7 +52,7 @@ export function RecoverySidePanel({
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
-                  OPTION A • ACCEPT RERA PENALTY
+                  OPTION A • ACCEPT RERA PENALTY {!isCrashCheaper ? '(RECOMMENDED)' : ''}
                 </span>
                 <span className="text-lg font-mono font-bold text-foreground">
                   {formatINR(penaltyCost)}
@@ -86,7 +86,7 @@ export function RecoverySidePanel({
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground block">
-                  OPTION B • CRASH SCHEDULE (RECOMMENDED)
+                  OPTION B • CRASH SCHEDULE {isCrashCheaper ? '(RECOMMENDED)' : ''}
                 </span>
                 <span className="text-lg font-mono font-bold text-primary">
                   {formatINR(crashCost)}

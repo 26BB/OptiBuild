@@ -69,6 +69,10 @@ def seed_database():
     Ensures zero fake projects or mock MahaRERA certificates.
     """
     print("[*] Running OptiBuild seed script...")
+    from backend.app.db.session import engine, Base
+    import backend.app.db.models
+    if engine:
+        Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         # 1. Seed or find empty organization
@@ -113,6 +117,25 @@ def seed_database():
         db.rollback()
         print(f"[ERROR] Seeding failed: {e}")
         raise
+    finally:
+        db.close()
+
+
+def auto_seed_if_empty():
+    """
+    Called on FastAPI startup. If users table is empty, seeds the 7 demo accounts automatically.
+    """
+    from backend.app.db.session import SessionLocal
+    if not SessionLocal:
+        return
+    db = SessionLocal()
+    try:
+        count = db.query(User).count()
+        if count == 0:
+            print("[*] Empty database detected on startup. Auto-seeding 7 demo accounts...")
+            seed_database()
+    except Exception as e:
+        print(f"[Warning] Auto-seed check failed: {e}")
     finally:
         db.close()
 

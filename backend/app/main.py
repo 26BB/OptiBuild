@@ -44,6 +44,18 @@ app.include_router(rera_router, prefix=settings.API_V1_STR)
 app.include_router(materials_router, prefix=settings.API_V1_STR)
 app.include_router(dashboard_router, prefix=settings.API_V1_STR)
 
+# Ensure database tables exist automatically on startup
+from backend.app.db.session import engine, Base
+import backend.app.db.models  # noqa: F401
+
+if engine:
+    try:
+        Base.metadata.create_all(bind=engine)
+        from backend.app.db.seed import auto_seed_if_empty
+        auto_seed_if_empty()
+    except Exception as _e:
+        print(f"[Warning] Startup initialization failed: {_e}")
+
 
 
 @app.get("/health", tags=["Health"])
