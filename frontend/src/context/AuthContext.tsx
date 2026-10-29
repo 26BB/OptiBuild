@@ -210,8 +210,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.push(home)
 
       return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message || "Network error. Please try again." }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Network error. Please try again."
+      return { success: false, error: errMsg }
     }
   }
 

@@ -178,7 +178,15 @@ class S3StorageManager:
         return self.generate_presigned_download_url(key, expires_in=expires_in)
 
     def _save_local_fallback(self, file_bytes: bytes, key: str) -> str:
-        target_path = UPLOAD_DIR / key
+        target_path = (UPLOAD_DIR / key).resolve()
+        upload_dir_resolved = UPLOAD_DIR.resolve()
+        try:
+            target_path.relative_to(upload_dir_resolved)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file path. Path traversal detected.",
+            )
         target_path.parent.mkdir(parents=True, exist_ok=True)
         with open(target_path, "wb") as f:
             f.write(file_bytes)

@@ -99,9 +99,12 @@ def create_material_entry(
         allowed_roles=["store_keeper", "project_manager", "admin"],
     )
 
-    # Count existing entries to format entry_id MAT-XXX
+    # Count existing entries to format entry_id MAT-XXX with collision guard
     count = db.query(MaterialLogModel).count()
     entry_id = f"MAT-{count + 1:04d}"
+    while db.query(MaterialLogModel).filter(MaterialLogModel.entry_id == entry_id).first():
+        count += 1
+        entry_id = f"MAT-{count + 1:04d}"
 
     total_cost = round(payload.quantity * payload.unit_rate, 2)
 

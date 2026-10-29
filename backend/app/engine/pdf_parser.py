@@ -26,14 +26,20 @@ class MahaRERAPDFParser:
 
             pdf = pdfium.PdfDocument(pdf_bytes)
             ocr_text_parts = []
-            max_pages = min(len(pdf), 3)
-            for i in range(max_pages):
-                page = pdf[i]
-                bitmap = page.render(scale=1.5)
-                pil_image = bitmap.to_pil()
-                text = pytesseract.image_to_string(pil_image)
-                if text:
-                    ocr_text_parts.append(text)
+            try:
+                max_pages = min(len(pdf), 3)
+                for i in range(max_pages):
+                    page = pdf[i]
+                    bitmap = page.render(scale=1.5)
+                    try:
+                        pil_image = bitmap.to_pil()
+                        text = pytesseract.image_to_string(pil_image)
+                        if text:
+                            ocr_text_parts.append(text)
+                    finally:
+                        bitmap.close()
+            finally:
+                pdf.close()
             return "\n".join(ocr_text_parts).strip()
         except Exception:
             return ""

@@ -61,13 +61,15 @@ def login_for_access_token(
     access_token = create_access_token(token_data, expires_delta=access_token_expires)
 
     # Set httpOnly cookie for secure browser persistence
+    is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="lax",
-        secure=False,  # Allow localhost development
+        secure=is_production,
+        path="/",
     )
 
     return TokenResponse(
@@ -88,7 +90,7 @@ def logout(response: Response):
     """
     Clears the authentication cookie.
     """
-    response.delete_cookie(key="access_token", samesite="lax")
+    response.delete_cookie(key="access_token", path="/", samesite="lax")
     return {"message": "Logged out successfully."}
 
 

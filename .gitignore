@@ -43,3 +43,6 @@ Thumbs.db
 .vscode/
 
 .taste-skill/
+
+# Agent artifacts
+.agent/

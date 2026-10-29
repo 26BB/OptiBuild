@@ -46,8 +46,12 @@ export function notifyWakeup(isWaking: boolean) {
 // Client-side automatic fetch wrapper:
 // - If any API request takes longer than 5 seconds, notifies wakeup listener ("Waking up the server, please wait...")
 // - Retries automatically up to 3 times before displaying an error
-if (typeof window !== "undefined" && !(window as any).__optibuild_fetch_installed__) {
-  (window as any).__optibuild_fetch_installed__ = true;
+interface OptiBuildWindow extends Window {
+  __optibuild_fetch_installed__?: boolean;
+}
+
+if (typeof window !== "undefined" && !(window as OptiBuildWindow).__optibuild_fetch_installed__) {
+  (window as OptiBuildWindow).__optibuild_fetch_installed__ = true;
   const originalFetch = window.fetch;
 
   window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -55,7 +59,7 @@ if (typeof window !== "undefined" && !(window as any).__optibuild_fetch_installe
     let attempt = 0;
 
     while (attempt <= maxRetries) {
-      let timeoutId: any = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       let hasNotifiedWakeup = false;
 
       timeoutId = setTimeout(() => {
