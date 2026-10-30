@@ -85,6 +85,7 @@ class Project(Base):
     materials = relationship("MaterialLogModel", back_populates="project", cascade="all, delete-orphan")
     drawings = relationship("ProjectDrawing", back_populates="project", cascade="all, delete-orphan")
     site_photos = relationship("SitePhotoModel", back_populates="project", cascade="all, delete-orphan")
+    feedback_reports = relationship("FeedbackReportModel", back_populates="project", cascade="all, delete-orphan")
 
 
 class ProjectMember(Base):
@@ -213,3 +214,29 @@ class DelayRecoveryEvaluationModel(Base):
     recommendation = Column(String(50), nullable=False)
     crashing_actions = Column(JSON, nullable=True)
     evaluated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class FeedbackReportModel(Base):
+    __tablename__ = "feedback_reports"
+
+    id = Column(String(50), primary_key=True, default=generate_uuid)
+    report_type = Column(String(20), nullable=False, index=True)  # BUG, FEEDBACK, FEATURE_REQUEST
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    category = Column(String(50), nullable=False, default="GENERAL")  # SCHEDULER, OPTIMIZER_GA, RERA_PARSER, MATERIALS, DRAWINGS, UI_UX, GENERAL
+    severity = Column(String(20), default="MEDIUM")  # LOW, MEDIUM, HIGH, CRITICAL
+    rating = Column(Integer, nullable=True)  # 1 to 5
+    status = Column(String(30), default="OPEN", index=True)  # OPEN, TRIAGED, IN_PROGRESS, RESOLVED, CLOSED
+    telemetry_data = Column(JSON, nullable=True)
+    attachment_url = Column(Text, nullable=True)  # LOCKED RULE: stored as unparsed evidence (INV-3)
+    jira_issue_key = Column(String(50), nullable=True, index=True)
+    submitted_by_id = Column(String(50), ForeignKey("users.id"), nullable=True)
+    project_id = Column(String(50), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    admin_notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    project = relationship("Project", back_populates="feedback_reports")
+    submitted_by = relationship("User", foreign_keys=[submitted_by_id])
+

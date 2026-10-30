@@ -43,6 +43,7 @@ The frontend is an industrial CAD blueprint workstation with 11 production route
 2. **Make Smallest Safe Change:** Write targeted, minimal code conforming to existing project patterns.
 3. **Verify:** Run linter (`npm run lint`), build (`npm run build`), and backend tests (`pytest`).
 4. **Summarize & Document:** Summarize exact changes, link touched files, and update corresponding documentation.
+5. **Obsidian Sync:** At the conclusion of sessions or significant milestones, run `python scripts/sync_obsidian_conversations.py --current` to keep `opti build claude context/` synced.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

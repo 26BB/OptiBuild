@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { AuthProvider } from "@/context/AuthContext"
 import { ClientLayoutWrapper } from "@/components/layout/ClientLayoutWrapper"
+import { WakeupBanner } from "@/components/layout/WakeupBanner"
 
 export const metadata: Metadata = {
   title: "OptiBuild — Penalty-Aware Construction Scheduling & Resource Optimization",
@@ -15,8 +16,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-row bg-background text-foreground blueprint-grid-bg">
+      <body className="min-h-full flex flex-col bg-background text-foreground blueprint-grid-bg">
         <AuthProvider>
+          <WakeupBanner />
           <ClientLayoutWrapper>{children}</ClientLayoutWrapper>
         </AuthProvider>
       </body>

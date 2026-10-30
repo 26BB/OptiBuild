@@ -17,7 +17,10 @@ import {
   ArrowRight,
   Lock,
   Mail,
+  User as UserIcon,
   CheckCircle2,
+  LogIn,
+  UserPlus,
 } from "lucide-react"
 
 // Lazy-load CAD blueprint background to eliminate SSR overhead
@@ -111,17 +114,21 @@ const DEMO_PRESETS: RolePreset[] = [
 ]
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, register } = useAuth()
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin")
   const [email, setEmail] = useState("pm@optibuild.io")
   const [password, setPassword] = useState("Pm@123")
+  const [fullName, setFullName] = useState("")
   const [selectedRole, setSelectedRole] = useState<string>("project_manager")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const handleRoleSelect = (preset: RolePreset) => {
     setSelectedRole(preset.role)
-    setEmail(preset.email)
-    setPassword(preset.pass)
+    if (authMode === "signin") {
+      setEmail(preset.email)
+      setPassword(preset.pass)
+    }
     setError(null)
   }
 
@@ -132,17 +139,31 @@ export default function LoginPage() {
       return
     }
 
+    if (authMode === "signup" && !fullName.trim()) {
+      setError("Please enter your full name.")
+      return
+    }
+
     setError(null)
     setLoading(true)
 
     try {
-      const result = await login(email, password)
-      if (!result.success) {
-        setError(result.error || "Authentication failed. Verify credentials.")
-        setLoading(false)
+      if (authMode === "signin") {
+        const result = await login(email, password)
+        if (!result.success) {
+          setError(result.error || "Authentication failed. Verify credentials.")
+          setLoading(false)
+        }
+      } else {
+        const result = await register(email, password, fullName.trim(), selectedRole)
+        if (!result.success) {
+          setError(result.error || "Registration failed. Verify details.")
+          setLoading(false)
+        }
       }
-    } catch (err: any) {
-      setError(err?.message || "Unexpected network failure during sign in.")
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unexpected network failure."
+      setError(msg)
       setLoading(false)
     }
   }
@@ -207,8 +228,8 @@ export default function LoginPage() {
               <span>7 Role-Gated Workspaces</span>
             </div>
             <div className="flex items-center justify-between text-[#E8ECEF]">
-              <span className="text-muted-foreground">Drawings & Bills</span>
-              <span className="text-emerald-400">Strictly Unparsed (Evidence)</span>
+              <span className="text-muted-foreground">Database Engine</span>
+              <span className="text-emerald-400">PostgreSQL (Neon) / SQLite</span>
             </div>
           </div>
         </div>
@@ -234,14 +255,56 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Login Card Panel */}
+          {/* Login / Sign Up Card Panel */}
           <div className="bg-card border border-border p-6 sm:p-8 rounded-[4px] shadow-sm space-y-6">
+            {/* Auth Mode Switcher */}
+            <div className="flex items-center border-b border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("signin")
+                  setError(null)
+                  if (!email) {
+                    setEmail("pm@optibuild.io")
+                    setPassword("Pm@123")
+                  }
+                }}
+                className={`flex-1 pb-3 text-xs font-mono font-semibold tracking-wider uppercase transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                  authMode === "signin"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("signup")
+                  setError(null)
+                  setPassword("")
+                  setEmail("")
+                }}
+                className={`flex-1 pb-3 text-xs font-mono font-semibold tracking-wider uppercase transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+                  authMode === "signup"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                Create Account
+              </button>
+            </div>
+
             <div>
               <h2 className="text-lg font-bold font-heading tracking-tight text-foreground">
-                Sign In to Site Workstation
+                {authMode === "signin" ? "Sign In to Site Workstation" : "Register Engineering Profile"}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Select your engineering role below or enter assigned work credentials.
+                {authMode === "signin"
+                  ? "Select your engineering role preset or enter assigned work credentials."
+                  : "Create an active user profile and assign your site authority role."}
               </p>
             </div>
 
@@ -258,6 +321,30 @@ export default function LoginPage() {
 
             {/* Form Inputs */}
             <form onSubmit={handleSubmit} className="space-y-4">
+              {authMode === "signup" && (
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="full-name"
+                    className="block text-[11px] font-mono uppercase text-muted-foreground tracking-wider font-semibold"
+                  >
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <UserIcon className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      id="full-name"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Ramesh Patel"
+                      className="w-full pl-9 pr-3 py-2 text-xs font-mono bg-background border border-border text-foreground placeholder:text-muted-foreground/60 rounded-[4px] focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
+                      required={authMode === "signup"}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label
                   htmlFor="work-email"
@@ -288,9 +375,14 @@ export default function LoginPage() {
                   >
                     Site Access Key (Password)
                   </label>
-                  {activePreset && (
+                  {authMode === "signin" && activePreset && (
                     <span className="text-[10px] font-mono text-primary">
                       Preset loaded
+                    </span>
+                  )}
+                  {authMode === "signup" && (
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      Min 6 chars
                     </span>
                   )}
                 </div>
@@ -312,7 +404,7 @@ export default function LoginPage() {
               {/* Animated Submit Button with Protected States */}
               <motion.button
                 type="submit"
-                disabled={loading || !email || !password}
+                disabled={loading || !email || !password || (authMode === "signup" && !fullName)}
                 whileHover={loading || !email || !password ? {} : { scale: 1.005 }}
                 whileTap={loading || !email || !password ? {} : { scale: 0.99 }}
                 className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 px-4 bg-primary text-primary-foreground font-mono text-xs font-semibold rounded-[4px] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-1 focus-visible:ring-primary focus-visible:outline-none border border-primary/20 shadow-sm"
@@ -320,11 +412,19 @@ export default function LoginPage() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                    <span>AUTHENTICATING ROLE AUTHORITY...</span>
+                    <span>
+                      {authMode === "signin"
+                        ? "AUTHENTICATING ROLE AUTHORITY..."
+                        : "PROVISIONING WORKSTATION ACCOUNT..."}
+                    </span>
                   </>
                 ) : (
                   <>
-                    <span>SIGN IN AS {activePreset ? activePreset.title.toUpperCase() : "AUTHORIZED USER"}</span>
+                    <span>
+                      {authMode === "signin"
+                        ? `SIGN IN AS ${activePreset ? activePreset.title.toUpperCase() : "AUTHORIZED USER"}`
+                        : `REGISTER AS ${activePreset ? activePreset.title.toUpperCase() : "ENGINEER"}`}
+                    </span>
                     <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                   </>
                 )}
@@ -334,8 +434,12 @@ export default function LoginPage() {
             {/* Selectable Role Chips Section */}
             <div className="border-t border-border pt-5 space-y-3">
               <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground uppercase tracking-wider">
-                <span className="font-semibold text-foreground">Selectable Demo Roles</span>
-                <span className="text-[10px] text-primary">1-Click Auto-Fill</span>
+                <span className="font-semibold text-foreground">
+                  {authMode === "signin" ? "Selectable Demo Roles" : "Assign Engineering Role"}
+                </span>
+                <span className="text-[10px] text-primary">
+                  {authMode === "signin" ? "1-Click Auto-Fill" : "RBAC Bound"}
+                </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -388,7 +492,7 @@ export default function LoginPage() {
 
           <div className="text-center text-[10px] font-mono text-muted-foreground/80 space-y-1">
             <div>Protected by OptiBuild RBAC Security Engine • Statutory MahaRERA Enforcement</div>
-            <div>Password policy verified: minimum 8 characters with alphanumeric credentials</div>
+            <div>Password policy verified: minimum 6 characters with authenticated session tokens</div>
           </div>
         </div>
       </div>

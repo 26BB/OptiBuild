@@ -7,6 +7,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    role: Optional[str] = "project_manager"
+
+
 class UserProfile(BaseModel):
     id: str
     email: str

@@ -81,8 +81,9 @@ All error responses adhere to standard FastAPI JSON structure:
 | # | Subsystem | Method | Endpoint Path | Permitted Roles | Summary |
 |:---:|:---|:---:|:---|:---|:---|
 | 1 | **Auth** | `POST` | `/api/v1/auth/login` | Public | Authenticates credentials; returns JWT and sets cookie. |
-| 2 | | `POST` | `/api/v1/auth/logout` | Authenticated | Clears authentication cookie. |
-| 3 | | `GET` | `/api/v1/auth/me` | Authenticated | Returns current user profile and assigned projects. |
+| 2 | | `POST` | `/api/v1/auth/register` | Public | Registers new user, assigns RBAC role, returns JWT and sets cookie. |
+| 3 | | `POST` | `/api/v1/auth/logout` | Authenticated | Clears authentication cookie. |
+| 4 | | `GET` | `/api/v1/auth/me` | Authenticated | Returns current user profile and assigned projects. |
 | 4 | **Users** | `GET` | `/api/v1/users` | `admin`, `pm` | Lists all organization user accounts. |
 | 5 | | `POST` | `/api/v1/users` | `admin` | Provisions a new user account with role. |
 | 6 | **Projects** | `GET` | `/api/v1/projects` | Authenticated | Lists all visible/assigned projects. |
@@ -113,6 +114,11 @@ All error responses adhere to standard FastAPI JSON structure:
 | 31 | **Benchmark**| `GET` | `/api/v1/benchmark/presets` | Authenticated | Returns construction benchmark presets (Small, Medium, Large). |
 | 32 | | `POST` | `/api/v1/benchmark/run` | `pm`, `admin` | Executes side-by-side GA vs Google OR-Tools CP-SAT benchmark. |
 | 33 | **Health** | `GET` | `/health` | Public | Service health check returning service status and version. |
+| 34 | **Feedback**| `POST` | `/api/v1/feedback` | Public / Auth | Submits bug report or feedback with background Jira dispatch. |
+| 35 | | `GET` | `/api/v1/feedback` | `admin`, `pm` | Lists and filters submitted feedback and bug reports. |
+| 36 | | `GET` | `/api/v1/feedback/stats` | Authenticated | Aggregated feedback statistics (resolution latency, ratings). |
+| 37 | | `GET` | `/api/v1/feedback/{id}` | `admin`, `pm` | Retrieves single feedback report and telemetry payload. |
+| 38 | | `PATCH`| `/api/v1/feedback/{id}` | `admin` | Updates status, admin triage notes, and Jira ticket key. |
 
 ---
 

@@ -43,8 +43,13 @@ export function notifyWakeup(isWaking: boolean) {
   });
 }
 
+export function isServerWakingUp(): boolean {
+  return activeWakeupRequests > 0;
+}
+
 // Client-side automatic fetch wrapper:
-// - If any API request takes longer than 5 seconds, notifies wakeup listener ("Waking up the server, please wait...")
+// - If any API request takes longer than 5 seconds or encounters cold-start 502/503/504,
+//   notifies wakeup listener ("Connecting to OptiBuild Engine...")
 // - Retries automatically up to 3 times before displaying an error
 interface OptiBuildWindow extends Window {
   __optibuild_fetch_installed__?: boolean;
@@ -62,45 +67,55 @@ if (typeof window !== "undefined" && !(window as OptiBuildWindow).__optibuild_fe
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
       let hasNotifiedWakeup = false;
 
-      timeoutId = setTimeout(() => {
-        hasNotifiedWakeup = true;
-        activeWakeupRequests++;
-        notifyWakeup(true);
-      }, 5000);
+      const triggerWakeup = () => {
+        if (!hasNotifiedWakeup) {
+          hasNotifiedWakeup = true;
+          activeWakeupRequests++;
+          notifyWakeup(true);
+        }
+      };
 
-      try {
-        const response = await originalFetch(input, init);
-
-        clearTimeout(timeoutId);
+      const clearWakeup = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         if (hasNotifiedWakeup) {
           activeWakeupRequests = Math.max(0, activeWakeupRequests - 1);
           if (activeWakeupRequests === 0) notifyWakeup(false);
           hasNotifiedWakeup = false;
         }
+      };
+
+      timeoutId = setTimeout(() => {
+        triggerWakeup();
+      }, 5000);
+
+      try {
+        const response = await originalFetch(input, init);
 
         // On cold-start, free servers or gateway proxies can return 502/503/504 while waking up
         if (
           (response.status === 502 || response.status === 503 || response.status === 504) &&
           attempt < maxRetries
         ) {
+          triggerWakeup();
           attempt++;
           await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          clearWakeup();
           continue;
         }
 
+        clearWakeup();
         return response;
       } catch (err) {
-        clearTimeout(timeoutId);
-        if (hasNotifiedWakeup) {
-          activeWakeupRequests = Math.max(0, activeWakeupRequests - 1);
-          if (activeWakeupRequests === 0) notifyWakeup(false);
-          hasNotifiedWakeup = false;
-        }
-
         if (attempt < maxRetries) {
+          triggerWakeup();
           attempt++;
           await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          clearWakeup();
         } else {
+          clearWakeup();
           throw err;
         }
       }

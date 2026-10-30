@@ -23,9 +23,12 @@ import {
   ChevronRight,
   Building,
   Check,
+  Bug,
+  LogIn,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
+import { FeedbackModal } from "@/components/feedback/FeedbackModal"
 
 interface NavItem {
   name: string
@@ -97,6 +100,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
   const { user, logout, projects, activeProjectId, activeProject, setActiveProjectId } = useAuth()
   const [isDark, setIsDark] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -290,6 +294,29 @@ export function Sidebar() {
         </nav>
       </div>
 
+      {/* Telemetry & Feedback Quick Action */}
+      <div className="px-2 pb-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => setIsFeedbackOpen(true)}
+          title={isCollapsed ? "Report Bug / Feedback Telemetry" : undefined}
+          className={cn(
+            "w-full flex items-center justify-between px-2.5 py-1.5 text-xs transition-colors rounded-[4px] border border-border/60 bg-muted/20 hover:bg-secondary text-foreground font-sans",
+            isCollapsed && "justify-center px-0"
+          )}
+        >
+          <div className="flex items-center gap-2 truncate">
+            <Bug className="w-3.5 h-3.5 text-primary shrink-0" />
+            {!isCollapsed && <span className="truncate text-[11px] font-mono">Report Bug / Feedback</span>}
+          </div>
+          {!isCollapsed && (
+            <span className="text-[9px] font-mono uppercase px-1 py-0.2 bg-primary/10 text-primary border border-primary/20 rounded-[2px]">
+              DIAG
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* User Profile & Theme Toggle Footer */}
       <div className="p-3 border-t border-border bg-muted/20 space-y-2 shrink-0">
         {user && !isCollapsed && (
@@ -313,6 +340,35 @@ export function Sidebar() {
           </div>
         )}
 
+        {user && isCollapsed && (
+          <div className="flex justify-center">
+            <button
+              onClick={logout}
+              title={`Sign Out (${user.full_name})`}
+              type="button"
+              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border hover:border-destructive/30 transition-colors rounded-[2px]"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {!user && (
+          <div className="flex justify-center">
+            <Link
+              href="/login"
+              title="Sign In"
+              className={cn(
+                "w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-primary text-primary-foreground font-mono text-xs font-semibold rounded-[4px] hover:bg-primary/90 transition-colors",
+                isCollapsed && "px-0 w-8 h-8"
+              )}
+            >
+              <LogIn className="w-3.5 h-3.5 shrink-0" />
+              {!isCollapsed && <span>Sign In</span>}
+            </Link>
+          </div>
+        )}
+
         <div className={cn("flex items-center justify-between text-xs", isCollapsed && "justify-center")}>
           {!isCollapsed && (
             <span className="text-[10px] font-mono text-muted-foreground">
@@ -329,6 +385,7 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </aside>
   )
 }

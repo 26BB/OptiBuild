@@ -73,6 +73,7 @@ def _build_engine(url: str):
     kwargs = {}
     if not url.startswith("sqlite"):
         kwargs["poolclass"] = NullPool
+        kwargs["pool_pre_ping"] = True
     else:
         kwargs["connect_args"] = {"check_same_thread": False}
     return create_engine(url, **kwargs)

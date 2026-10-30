@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react"
 import { motion, type Variants } from "framer-motion"
 import { getApiUrl } from "@/lib/api"
+import { FeedbackReportsTab } from "@/components/admin/FeedbackReportsTab"
+import { cn } from "@/lib/utils"
 import { TopBar } from "@/components/layout/TopBar"
 import { PermissionDenied } from "@/components/ui/PermissionDenied"
 import { useAuth, UserProfile } from "@/context/AuthContext"
@@ -35,6 +37,7 @@ import {
   Search,
   Plus,
   CheckCircle2,
+  Bug,
 } from "lucide-react"
 
 interface ProjectMemberInfo {
@@ -97,6 +100,7 @@ const pageVariants: Variants = {
 
 export default function AdminPage() {
   const { user, token, projects, activeProjectId, hasPermission, refreshProjects } = useAuth()
+  const [activeAdminTab, setActiveAdminTab] = useState<"users" | "telemetry">("users")
 
   const [usersList, setUsersList] = useState<UserProfile[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>(activeProjectId || "")
@@ -352,6 +356,41 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+
+        {/* Top Tab Switcher */}
+        <div className="flex border border-border rounded-[4px] p-0.5 bg-card/60 font-mono text-xs max-w-md select-none">
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab("users")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-[2px] transition-colors cursor-pointer text-xs",
+              activeAdminTab === "users"
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+            )}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>[ ROSTER & PERMISSIONS ]</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveAdminTab("telemetry")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-1.5 rounded-[2px] transition-colors cursor-pointer text-xs",
+              activeAdminTab === "telemetry"
+                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+            )}
+          >
+            <Bug className="w-3.5 h-3.5" />
+            <span>[ TELEMETRY & BUGS ]</span>
+          </button>
+        </div>
+
+        {activeAdminTab === "telemetry" ? (
+          <FeedbackReportsTab />
+        ) : (
+          <>
 
         {error && (
           <div className="p-3.5 bg-destructive/10 border border-destructive text-destructive font-mono text-xs flex items-center gap-2.5 rounded-[4px]">
@@ -621,6 +660,8 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+          </>
+        )}
 
         {/* Register User Dialog (Admin Only) */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>

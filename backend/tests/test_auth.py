@@ -98,3 +98,46 @@ def test_jwt_secret_validation_rejects_short_or_missing(monkeypatch):
         Settings()
     assert "missing or shorter than 32 characters" in str(exc_info.value)
 
+
+
+def test_register_new_user_success():
+    import uuid
+    random_email = f"user_{uuid.uuid4().hex[:8]}@optibuild.io"
+    payload = {
+        "email": random_email,
+        "password": "SecurePassword123",
+        "full_name": "Test Site Engineer",
+        "role": "site_engineer"
+    }
+    response = client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 201
+    body = response.json()
+    assert "access_token" in body
+    assert body["user"]["email"] == random_email
+    assert body["user"]["role"] == "site_engineer"
+    assert body["user"]["full_name"] == "Test Site Engineer"
+
+
+def test_register_duplicate_email_fails():
+    payload = {
+        "email": "pm@optibuild.io",
+        "password": "AnotherPassword123",
+        "full_name": "Duplicate PM",
+        "role": "project_manager"
+    }
+    response = client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 400
+    assert "already exists" in response.json()["detail"]
+
+
+def test_register_invalid_role_fails():
+    import uuid
+    payload = {
+        "email": f"bad_role_{uuid.uuid4().hex[:6]}@optibuild.io",
+        "password": "Password123",
+        "full_name": "Bad Role User",
+        "role": "superman"
+    }
+    response = client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 400
+    assert "Invalid role" in response.json()["detail"]

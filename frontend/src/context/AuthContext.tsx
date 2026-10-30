@@ -36,6 +36,7 @@ interface AuthContextType {
   activeProject: ProjectSummary | null
   projects: ProjectSummary[]
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  register: (email: string, password: string, fullName: string, role?: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   setActiveProjectId: (id: string) => void
   refreshProjects: () => Promise<void>
@@ -81,6 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const router = useRouter()
   const pathname = usePathname()
+
+  // Proactive background pre-warm: starts container/backend spin-up immediately on initial client mount
+  useEffect(() => {
+    fetch(getApiUrl('/health')).catch(() => {})
+  }, [])
 
   // Initial authentication hydration
   useEffect(() => {
@@ -216,6 +222,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const register = async (email: string, password: string, fullName: string, role?: string) => {
+    try {
+      const res = await fetch(getApiUrl("/api/v1/auth/register"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, full_name: fullName, role: role || "project_manager" }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        return { success: false, error: errData.detail || "Registration failed. Please check inputs." }
+      }
+
+      const data = await res.json()
+      setToken(data.access_token)
+      setUser(data.user)
+      setAuthCookies(data.access_token, data.user.role)
+
+      localStorage.setItem("optibuild_token", data.access_token)
+      localStorage.setItem("optibuild_user", JSON.stringify(data.user))
+
+      // Fetch projects
+      const projRes = await fetch(getApiUrl("/api/v1/projects"), {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      })
+      if (projRes.ok) {
+        const projData = await projRes.json()
+        setProjects(projData)
+        if (projData.length > 0) {
+          setActiveProjectIdState(projData[0].id)
+          localStorage.setItem("optibuild_active_project_id", projData[0].id)
+        }
+      }
+
+      const home = ROLE_HOMES[data.user.role] || "/"
+      router.push(home)
+
+      return { success: true }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Network error during registration."
+      return { success: false, error: errMsg }
+    }
+  }
+
   const logout = async () => {
     try {
       await fetch(getApiUrl("/api/v1/auth/logout"), { method: "POST" })
@@ -249,6 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         activeProject,
         projects,
         login,
+        register,
         logout,
         setActiveProjectId,
         refreshProjects,

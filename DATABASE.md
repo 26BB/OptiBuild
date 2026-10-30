@@ -34,14 +34,17 @@ flowchart TD
    * When `DATABASE_URL` is unset or PostgreSQL is unreachable, the system automatically falls back to `sqlite:///./optibuild.db`.
    * Configured with `connect_args={"check_same_thread": False}` for multi-threaded FastAPI execution.
 
-### 1.2 Connection Pooling & Normalization ([`backend/app/db/session.py`](file:///d:/OptiBuild%20BE%20Project/OptiBuild-Main/backend/app/db/session.py))
-* **URL Normalization:** The [`clean_database_url()`](file:///d:/OptiBuild%20BE%20Project/OptiBuild-Main/backend/app/db/session.py#L9) function sanitizes connection strings:
+### 1.2 Connection Pooling & Normalization ([`backend/app/db/session.py`](file:///d:/Opti%20Build/backend/app/db/session.py))
+* **Neon Serverless PostgreSQL Support:** OptiBuild supports Neon serverless Postgres (`ep-*.neon.tech`), including direct SSL encrypted links and Neon connection poolers.
+* **URL Normalization:** The [`clean_database_url()`](file:///d:/Opti%20Build/backend/app/db/session.py) function sanitizes connection strings:
   * Strips `?pgbouncer=true` or `&pgbouncer=true` to prevent driver connection errors.
   * Normalizes legacy `postgres://` prefixes to `postgresql+psycopg2://` as required by SQLAlchemy 2.0.
-* **NullPool Configuration:** External connection poolers (like PgBouncer or Supabase transaction pooling) maintain their own server-side connection pools. OptiBuild configures `poolclass=NullPool` for PostgreSQL to avoid double-pooling and session connection exhaustion:
+  * Preserves `sslmode=require` query parameters required by Neon PostgreSQL.
+* **NullPool & Pre-Ping Configuration:** External connection poolers (Neon, PgBouncer, Supabase) maintain their own server-side connection pools. OptiBuild configures `poolclass=NullPool` with `pool_pre_ping=True` for PostgreSQL to avoid connection drops during serverless inactivity and auto-reconnect:
   ```python
   if not url.startswith("sqlite"):
       kwargs["poolclass"] = NullPool
+      kwargs["pool_pre_ping"] = True
   else:
       kwargs["connect_args"] = {"check_same_thread": False}
   ```
@@ -62,7 +65,7 @@ This guarantees deterministic connection cleanup on every request, even when exc
 
 ## 2. Entity-Relationship Diagram (Complete ERD)
 
-The relational schema consists of **10 SQLAlchemy ORM models** defined in [`backend/app/db/models.py`](file:///d:/OptiBuild%20BE%20Project/OptiBuild-Main/backend/app/db/models.py):
+The relational schema consists of **11 SQLAlchemy ORM models** defined in [`backend/app/db/models.py`](file:///d:/OptiBuild%20BE%20Project/OptiBuild-Main/backend/app/db/models.py):
 
 ```mermaid
 erDiagram
@@ -76,6 +79,8 @@ erDiagram
     PROJECTS ||--o{ RERA_CERTIFICATES : confirms
     PROJECTS ||--o{ SITE_PHOTOS : records
     PROJECTS ||--o{ DELAY_RECOVERY_EVALUATIONS : logs
+    PROJECTS ||--o{ FEEDBACK_REPORTS : receives
+    USERS ||--o{ FEEDBACK_REPORTS : submits
 
     ORGANIZATIONS {
         string id PK "UUID (String 50)"
@@ -222,6 +227,25 @@ erDiagram
         string recommendation "CRASH|ACCEPT_PENALTY"
         json crashing_actions "Itemized compressed activities"
         datetime evaluated_at "UTC Timestamp"
+    }
+
+    FEEDBACK_REPORTS {
+        string id PK "UUID (String 50, Indexed)"
+        string report_type "BUG|FEEDBACK|FEATURE_REQUEST (Indexed)"
+        string title "Concise issue summary or title"
+        text description "Detailed reproduction or feedback"
+        string category "Subsystem category (Indexed)"
+        string severity "LOW|MEDIUM|HIGH|CRITICAL"
+        int rating "1 to 5 user rating (Nullable)"
+        string status "OPEN|TRIAGED|IN_PROGRESS|RESOLVED|CLOSED (Indexed)"
+        json telemetry_data "Auto-collected client runtime state"
+        text attachment_url "Unparsed screenshot evidence (INV-3)"
+        string jira_issue_key "Linked Jira issue key (Indexed, Nullable)"
+        string submitted_by_id FK "users.id (Nullable)"
+        string project_id FK "projects.id ON DELETE CASCADE (Nullable)"
+        text admin_notes "Admin resolution notes (Nullable)"
+        datetime created_at "UTC Timestamp"
+        datetime updated_at "UTC Timestamp"
     }
 ```
 
@@ -767,3 +791,25 @@ To prevent orphaned child records and simplify project lifecycle deletion, forei
 
 *Database specification verified against `backend/app/db/models.py` and approved as single source of truth in `DATABASE.md`.*
 
+
+### 3.11 `feedback_reports` (In-App Feedback & Telemetry Bug Reports)
+* **Model Class:** [`FeedbackReportModel`](file:///d:/OptiBuild%20BE%20Project/OptiBuild-Main/backend/app/db/models.py)
+* **Table Name:** `feedback_reports`
+* **Purpose:** Stores user feedback, bug reports, and client telemetry snapshots with optional Jira Cloud ticket keys.
+* **Columns:**
+  * `id` (`VARCHAR(50)`, PK): UUID primary key.
+  * `report_type` (`VARCHAR(20)`, Indexed): `BUG`, `FEEDBACK`, or `FEATURE_REQUEST`.
+  * `title` (`VARCHAR(255)`): Summary title.
+  * `description` (`TEXT`): Full reproduction steps or feedback text.
+  * `category` (`VARCHAR(50)`, Indexed): `SCHEDULER`, `OPTIMIZER_GA`, `RERA_PARSER`, `MATERIALS`, `DRAWINGS`, `UI_UX`, `GENERAL`.
+  * `severity` (`VARCHAR(20)`): `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`.
+  * `rating` (`INTEGER`, Nullable): 1 to 5 satisfaction rating.
+  * `status` (`VARCHAR(30)`, Indexed): `OPEN`, `TRIAGED`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`.
+  * `telemetry_data` (`JSON`, Nullable): Client environment (route, resolution, theme, role, error trace).
+  * `attachment_url` (`TEXT`, Nullable): Stored as unparsed documentary evidence (**INV-3**).
+  * `jira_issue_key` (`VARCHAR(50)`, Indexed, Nullable): Synced Jira issue (e.g. `SCRUM-18`).
+  * `submitted_by_id` (`VARCHAR(50)`, FK `users.id`, Nullable): Submitting user identity.
+  * `project_id` (`VARCHAR(50)`, FK `projects.id`, Nullable): Active project context.
+  * `admin_notes` (`TEXT`, Nullable): Triage notes added by site admin.
+  * `created_at` (`DATETIME`): UTC creation timestamp.
+  * `updated_at` (`DATETIME`): UTC last update timestamp.

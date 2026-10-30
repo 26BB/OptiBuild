@@ -18,9 +18,13 @@ import {
   Compass,
   Calculator,
   UserCheck,
+  Bug,
+  LogOut,
+  LogIn,
 } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { CommandPalette } from "@/components/layout/CommandPalette"
+import { FeedbackModal } from "@/components/feedback/FeedbackModal"
 
 interface TopBarProps {
   projectName?: string
@@ -55,6 +59,7 @@ export function TopBar({
   const { activeProject, user, logout } = useAuth()
   const [isCommandOpen, setIsCommandOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
 
   const displayName = projectName || activeProject?.name || "Active Workspace"
   const delayDays = delayRiskDays !== undefined ? delayRiskDays : activeProject?.delay_days || 0
@@ -113,6 +118,18 @@ export function TopBar({
 
         {/* Right: Command Palette, Optimizer Action & User Pill */}
         <div className="flex items-center gap-2.5">
+          {/* Telemetry Bug & Feedback Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsFeedbackOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono bg-background border border-border hover:border-primary/50 text-muted-foreground hover:text-foreground rounded-[4px] transition-colors"
+            title="Workstation Feedback / Report Bug"
+            aria-label="Feedback / Report Bug"
+          >
+            <Bug className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden xl:inline text-[11px]">Report Bug</span>
+          </button>
+
           {/* Global Command Palette Trigger (Ctrl+K) */}
           <button
             type="button"
@@ -139,14 +156,33 @@ export function TopBar({
             </button>
           )}
 
-          {/* Active User Authority Badge */}
-          {user && (
-            <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-border text-[11px] font-mono">
-              <span className="text-muted-foreground truncate max-w-[100px]">{user.full_name}</span>
-              <span className="px-1 py-0.2 bg-primary/10 text-primary border border-primary/20 rounded-[2px] uppercase text-[9px] font-semibold">
-                {user.role.replace("_", " ")}
-              </span>
+          {/* Active User Authority Badge & In-App Sign In / Out */}
+          {user ? (
+            <div className="flex items-center gap-2 pl-2 border-l border-border text-[11px] font-mono">
+              <div className="hidden sm:flex items-center gap-1.5">
+                <span className="text-muted-foreground truncate max-w-[110px]" title={user.email}>{user.full_name}</span>
+                <span className="px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-[2px] uppercase text-[9px] font-semibold">
+                  {user.role.replace("_", " ")}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                title="Sign out of workstation"
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/80 hover:border-destructive/30 rounded-[2px] transition-colors"
+              >
+                <LogOut className="w-3 h-3" />
+                <span className="hidden md:inline">Sign Out</span>
+              </button>
             </div>
+          ) : (
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-semibold bg-primary text-primary-foreground hover:bg-primary/90 border border-primary/20 rounded-[4px] shadow-xs transition-colors"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </Link>
           )}
         </div>
       </header>
@@ -220,6 +256,7 @@ export function TopBar({
           </div>
         </div>
       )}
+      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
     </>
   )
 }

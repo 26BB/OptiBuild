@@ -7,13 +7,16 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.app.core.auth import (
     verify_password,
+    hash_password,
     create_access_token,
     get_current_user,
+    ROLES_ALL,
 )
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Project, ProjectMember
 from backend.app.schemas.auth import (
     LoginRequest,
+    RegisterRequest,
     TokenResponse,
     UserProfile,
 )
@@ -82,6 +85,94 @@ def login_for_access_token(
             full_name=user.full_name,
             role=user.role,
             is_active=user.is_active,
+        ),
+    )
+
+
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+def register_user(
+    payload: RegisterRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    Registers a new user, assigns their engineering role, issues a JWT token,
+    and sets an HTTP-only cookie for immediate authenticated access.
+    """
+    email_clean = payload.email.strip().lower()
+    if not email_clean or "@" not in email_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Valid email address is required.",
+        )
+
+    if not payload.password or len(payload.password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long.",
+        )
+
+    full_name_clean = payload.full_name.strip()
+    if not full_name_clean:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Full name is required.",
+        )
+
+    role_candidate = (payload.role or "project_manager").strip().lower()
+    if role_candidate not in ROLES_ALL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role '{role_candidate}'. Must be one of: {', '.join(ROLES_ALL)}",
+        )
+
+    existing = db.query(User).filter(User.email == email_clean).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with email '{email_clean}' already exists. Please sign in instead.",
+        )
+
+    new_user = User(
+        email=email_clean,
+        hashed_password=hash_password(payload.password),
+        full_name=full_name_clean,
+        role=role_candidate,
+        is_active=True,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token_data = {
+        "sub": new_user.id,
+        "email": new_user.email,
+        "role": new_user.role,
+        "name": new_user.full_name,
+    }
+    access_token = create_access_token(token_data, expires_delta=access_token_expires)
+
+    is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        samesite="lax",
+        secure=is_production,
+        path="/",
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserProfile(
+            id=new_user.id,
+            email=new_user.email,
+            full_name=new_user.full_name,
+            role=new_user.role,
+            is_active=new_user.is_active,
         ),
     )
 

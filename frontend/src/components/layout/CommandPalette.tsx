@@ -19,6 +19,8 @@ import {
   LogOut,
   Building,
   Check,
+  Bug,
+  MessageSquare,
 } from "lucide-react"
 
 interface CommandPaletteProps {
@@ -174,6 +176,32 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             <div className="text-[10px] font-mono uppercase text-muted-foreground px-2 py-1 tracking-wider font-semibold">
               Quick Actions
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("open-feedback-modal", { detail: { tab: "BUG" } }))
+                }
+              }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-secondary rounded-[2px] transition-colors"
+            >
+              <Bug className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span>Report Workstation Bug / Diagnostic Telemetry</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("open-feedback-modal", { detail: { tab: "FEEDBACK" } }))
+                }
+              }}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs text-foreground hover:bg-secondary rounded-[2px] transition-colors"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span>Submit Workstation Feedback & Rating</span>
+            </button>
             <button
               type="button"
               onClick={handleToggleTheme}
