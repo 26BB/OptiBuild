@@ -30,3 +30,4 @@ torchvision>=0.15.0
 # --- Testing & Quality Assurance ---
 pytest>=7.4.0
 requests>=2.31.0
+httpx>=0.25.0

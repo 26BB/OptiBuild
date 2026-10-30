@@ -1,6 +1,6 @@
 ---
 description: Ensure integrity of cross-module schema contracts and prevent accidental inter-module breakages
-globs: ["app/**/*", "research/**/*"]
+globs: "{app/**/*,research/**/*}"
 always_on: true
 ---
 

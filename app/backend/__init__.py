@@ -1,0 +1,1 @@
+"""OptiBuild FastAPI backend package."""

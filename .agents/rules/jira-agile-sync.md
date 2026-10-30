@@ -1,6 +1,6 @@
 ---
 description: Enforce Jira-first agile sprint alignment and git commit hygiene across all 4 team members
-globs: ["**/*"]
+globs: "**/*"
 always_on: true
 ---
 

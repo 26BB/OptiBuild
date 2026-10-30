@@ -1,6 +1,6 @@
 ---
 description: Trigger conversational teammate introduction, interactive role selection, and automated environment bootstrap
-globs: ["**/*"]
+globs: "**/*"
 always_on: true
 ---
 

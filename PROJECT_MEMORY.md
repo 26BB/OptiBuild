@@ -150,11 +150,11 @@ These architectural boundaries were locked during Review 1 and supervisor consul
 | **Phase 4: Dashboard & Full-Stack** | 4.1 FastAPI Backend & PostgreSQL Models | ⏳ Pending | High | `[SCRUM-13]` Unified database schema & REST endpoints |
 | | 4.2 Next.js Dashboard & Gantt Chart | ⏳ Pending | High | `[SCRUM-13]` Visual interactive schedule & cost views |
 | | 4.3 End-to-end integration | ⏳ Pending | High | Flow test from project setup to crash advice |
-| **Phase 5: Academic Deliverables** | 5.1 SPPU Stage 1 Report | 🔄 In Progress | High | `docs/synopsis.md`, Stage 1 report chapters |
-| | 5.2 Mathematical Model Documentation | 🔄 In Progress | High | `research/math-model/mathematical_model.md` |
+| **Phase 5: Academic Deliverables** | 5.1 SPPU Stage 1 Report | ✅ Draft Ready | High | `docs/synopsis.md`, `docs/chapter2_literature_survey.md` |
+| | 5.2 Mathematical Model Documentation | ✅ Completed | High | `research/math-model/mathematical_model.md` |
 | | 5.3 Literature Survey Matrix (12+ Papers) | ✅ Completed | High | `[SCRUM-6]`, `[SCRUM-7]` Done (11 PDFs in `papers/`) |
-| | 5.4 Conference Paper 1 (Deadline: Oct 25) | 🔄 In Progress | High | `[SCRUM-8]` Draft in IEEE format via Overleaf |
-| | 5.5 Review 2 Presentation Deck | ⏳ Pending | High | Gamma/Slides deck for guide & panel |
+| | 5.4 Conference Paper 1 (Deadline: Oct 25) | ✅ Draft Ready | High | `[SCRUM-8]`, `[SCRUM-16]` `research/literature-survey/optibuild_literature_survey.tex` & Overleaf ZIP |
+| | 5.5 Review 2 Presentation Deck | ✅ Ready | High | `[SCRUM-15]` `docs/review_2_presentation.md` (14 slides + viva script) |
 
 §
 
