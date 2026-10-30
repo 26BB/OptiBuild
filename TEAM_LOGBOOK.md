@@ -6,9 +6,9 @@
 
 ---
 
-## 🧭 Multi-Agent Operating Protocol (4 Teammates + 4 Jules Fleet)
+## 🧭 Multi-Agent Operating Protocol (4 Teammates + Autonomous AI Coding Fleet)
 
-When 4 developers with Gemini Pro / Jules plans work simultaneously on the same repository, uncoordinated agent pushes will cause merge conflicts and chaos. Follow this protocol to make it run like a well-oiled machine:
+When 4 developers using autonomous AI coding agents (Antigravity, Claude Code, OpenAI Codex, Cursor) work simultaneously on the same repository, uncoordinated agent pushes will cause merge conflicts and chaos. Follow this protocol to make it run like a well-oiled machine:
 
 ```mermaid
 flowchart TD
@@ -17,10 +17,10 @@ flowchart TD
     end
 
     subgraph S2[2. Dispatch & Isolation]
-        J1[Divyal + Jules: CPM & GA]
-        J2[Chaitanya + Jules: OR-Tools CP-SAT]
-        J3[Bhushan + Jules: MahaRERA Penalty & Finance]
-        J4[Aniket + Jules: Frontend & CV]
+        J1[Divyal + Agent: CPM & GA]
+        J2[Chaitanya + Agent: OR-Tools CP-SAT]
+        J3[Bhushan + Agent: MahaRERA Penalty & Finance]
+        J4[Aniket + Agent: Frontend & CV]
     end
 
     subgraph S3[3. Quality Gate]
@@ -50,16 +50,16 @@ flowchart TD
 
 2. **Branch Naming Standard:**
    * Human feature branches: `feat/<name>-<feature>` (e.g. `feat/bhushan-financial-model`)
-   * Jules agent branches: `jules/<name>-<ticket>` (e.g. `jules/divyal-cpm-dag`)
+   * AI agent branches: `agent/<name>-<ticket>` or `codex/<name>-<ticket>` (e.g. `agent/divyal-cpm-dag`)
    * **Rule:** Nobody pushes directly to `main`. Ever.
 
-3. **Issue-Driven Jules Dispatch:**
-   * Never let Jules "freestyle" across the whole repo.
-   * Create a GitHub Issue with clear inputs, expected output, and target folder.
-   * Command Jules: *"Work strictly inside `backend/app/engine/penalty/`. Write unit tests. Open a PR when green."*
+3. **Issue-Driven AI Agent Dispatch:**
+   * Never let an AI agent "freestyle" across the whole repo.
+   - Create a GitHub Issue with clear inputs, expected output, and target folder.
+   * Command the agent: *"Work strictly inside `backend/app/engine/penalty/`. Write unit tests. Open a PR when green."*
 
 4. **Pull Request (PR) Quality Gate:**
-   * Jules creates a PR. The human lead of that module reviews the PR diff.
+   * AI agent creates a PR. The human lead of that module reviews the PR diff.
    * Once approved & merged, log a 1-line update in this logbook.
 
 ---
@@ -77,7 +77,7 @@ flowchart TD
 
 ## 📋 Active Sprint & Agent Dispatch Board
 
-| Member | Active Branch / Jules Agent | Current Task | Status | Target Date |
+| Member | Active Branch / AI Agent | Current Task | Status | Target Date |
 |---|---|---|---|---|
 | **Bhushan** | `feat/academic-research-docs` | Push verified, 74 tests green, Next.js 16.4.3, academic docs | 🟢 Complete | Oct 30 |
 | **Divyal** | `main` | Collaborator setup & Optimization foundation | ✅ Merged | Oct 29 |
@@ -90,7 +90,7 @@ flowchart TD
 
 ## 📝 Daily Worklog & Audit Trail
 
-> **How to log:** Whenever you or your Jules agent finishes a task, append a new row below. Keep it concise.
+> **How to log:** Whenever you or your AI coding agent finishes a task, append a new row below. Keep it concise.
 
 ### Format:
 `### [YYYY-MM-DD] Member - Brief Summary`
@@ -103,7 +103,7 @@ flowchart TD
 
 ### [2026-10-28] Bhushan Bhosale - Multi-Agent Coordination Protocol & Logbook Initialized
 - **Branch:** `optibuild-playground`
-- **Changes:** Created `TEAM_LOGBOOK.md` with multi-agent Jules protocol, directory ownership boundaries, and active dispatch board.
+- **Changes:** Created `TEAM_LOGBOOK.md` with multi-agent AI protocol, directory ownership boundaries, and active dispatch board.
 - **Viva Value:** Demonstrates strict agile software engineering practices, professional version control, and multi-agent AI workflow governance.
 
 ---

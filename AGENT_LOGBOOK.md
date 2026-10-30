@@ -1,5 +1,5 @@
 # 🤖 AGENT_LOGBOOK.md — Autonomous AI Agent Operations Ledger
-<!-- SYSTEM DIRECTIVE FOR ALL AI AGENTS (Antigravity, Claude, Jules, Cursor, Copilot) -->
+<!-- SYSTEM DIRECTIVE FOR ALL AI AGENTS (Antigravity, Claude Code, OpenAI Codex, Cursor) -->
 <!-- 
 MANDATORY FOR ALL AI AGENTS:
 1. READ THIS FILE AT THE START OF EVERY SESSION.
@@ -21,7 +21,7 @@ MANDATORY FOR ALL AI AGENTS:
 [Bhushan Bhosale]          [Chaitanya]                 [Aniket]
 Collaborator               Collaborator                Collaborator
 Branch: feat/bhushan-*     Branch: feat/chaitanya-*    Branch: feat/aniket-*
-Agent: Antigravity/Claude  Agent: Jules/Claude         Agent: Antigravity/Jules
+Agent: Antigravity/Claude  Agent: Codex/Claude Code    Agent: Antigravity/Cursor
 Module: Penalty Engine     Module: CP-SAT Benchmark   Module: Frontend & CV
 ```
 
@@ -50,7 +50,7 @@ Whenever an AI agent detects, investigates, or fixes a bug, lint issue, test fai
 
 ### Error Entry Template for Agents:
 ```markdown
-### [ERR-XXX] YYYY-MM-DD | Agent: <Antigravity|Claude|Jules> | Operator: <Name>
+### [ERR-XXX] YYYY-MM-DD | Agent: <Antigravity|Claude Code|Codex|Cursor> | Operator: <Name>
 - **Error Signature:** `<paste exact error string or exception>`
 - **Failing Target:** `path/to/file.py:Lxx`
 - **Root Cause:** <1-sentence technical explanation>
@@ -96,9 +96,9 @@ Whenever an AI agent detects, investigates, or fixes a bug, lint issue, test fai
 | `TASK-001` | Multi-Agent Operations Ledger | `optibuild-playground` | Antigravity 2.0 | Bhushan | 🟢 Complete | Local commit `009dc74` |
 | `TASK-002` | Collaborator Invite & Push Gate | `feat/academic-research-docs` | Human / GitHub | Divyal / Bhushan | 🟢 Complete | Verified push code 0 |
 | `TASK-003` | MahaRERA Section 18 Penalty Math | `feat/academic-research-docs` | Claude / Antigravity | Bhushan | 🟢 Complete | Pytest 74/74 green |
-| `TASK-004` | CPM DAG Engine NetworkX Pass | `feat/academic-research-docs` | Jules / Antigravity | Divyal | 🟢 Complete | Pytest 74/74 green |
-| `TASK-005` | OR-Tools CP-SAT Baseline Model | `feat/academic-research-docs` | Jules / Claude | Chaitanya | 🟢 Complete | Pytest 74/74 green |
-| `TASK-006` | Next.js Gantt & Project Ingestion | `feat/academic-research-docs` | Jules / Antigravity | Aniket | 🟢 Complete | npm run build (16.4.3) |
+| `TASK-004` | CPM DAG Engine NetworkX Pass | `feat/academic-research-docs` | Codex / Antigravity | Divyal | 🟢 Complete | Pytest 74/74 green |
+| `TASK-005` | OR-Tools CP-SAT Baseline Model | `feat/academic-research-docs` | Claude Code / Codex | Chaitanya | 🟢 Complete | Pytest 74/74 green |
+| `TASK-006` | Next.js Gantt & Project Ingestion | `feat/academic-research-docs` | Cursor / Antigravity | Aniket | 🟢 Complete | npm run build (16.4.3) |
 | `TASK-007` | SPPU Academic Research & Docs | `feat/academic-research-docs` | Antigravity | Bhushan | 🟢 Complete | IEEE paper & synopsis |
 
 *Status codes: `🟢 Complete` | `🟡 In Progress` | `🔴 Blocked` | `⚪ Queued`*
@@ -109,7 +109,7 @@ Whenever an AI agent detects, investigates, or fixes a bug, lint issue, test fai
 
 When you (an AI coding agent) receive a user request:
 1. **Identify the human operator** (Bhushan, Divyal, Chaitanya, or Aniket).
-2. **Check your branch**: Do not write code directly on `main`. Ensure you are on `feat/<operator>-<topic>` or `jules/<operator>-<topic>`.
+2. **Check your branch**: Do not write code directly on `main`. Ensure you are on `feat/<operator>-<topic>` or `agent/<operator>-<topic>` (e.g. `codex/<operator>-<topic>`).
 3. **Respect directory locks**: Never edit files outside your operator's designated module without explicit confirmation.
 4. **Auto-test before completing**: Always run unit tests (`pytest` or `npm test`) on your modifications.
 5. **Log errors and fixes**: If you encounter an error and solve it, add an `[ERR-XXX]` entry to the **Live Error & Incident Ledger** above so your peer agents learn from it.
