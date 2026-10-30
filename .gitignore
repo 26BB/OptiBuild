@@ -48,3 +48,7 @@ Thumbs.db
 .agent/
 .agents/
 .codex/
+
+*.db
+*.sqlite3
+opti build claude context/

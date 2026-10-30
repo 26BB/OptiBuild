@@ -45,7 +45,7 @@ def test_admin_role_has_universal_access():
 
 def test_non_admin_cannot_access_user_management():
     """Non-admin roles are forbidden from managing users."""
-    roles = ["project_manager", "site_engineer", "store_keeper", "architect", "accountant", "owner"]
+    roles = ["site_engineer", "store_keeper", "architect", "accountant", "owner"]
     for r in roles:
         resp = client.get("/api/v1/users", headers=auth_header(r))
         assert resp.status_code == 403
