@@ -17,12 +17,14 @@ repo_root = Path(__file__).resolve().parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
+__test__ = False
+
 from sqlalchemy import text, create_engine
 from backend.app.db.session import clean_database_url
 from backend.app.db.models import Base, User, Project
 
 
-def test_neon_connection(db_url: str, do_seed: bool = False):
+def verify_neon_connection(db_url: str, do_seed: bool = False):
     print(f"\n[+] Testing Neon PostgreSQL Connection...")
     cleaned_url = clean_database_url(db_url)
     # Mask password for display
@@ -78,5 +80,5 @@ if __name__ == "__main__":
         print("Or set NEON_DATABASE_URL / DATABASE_URL in your environment or .env file.")
         sys.exit(1)
 
-    success = test_neon_connection(target_url, do_seed=do_seed)
+    success = verify_neon_connection(target_url, do_seed=do_seed)
     sys.exit(0 if success else 1)
