@@ -48,9 +48,10 @@ export function isServerWakingUp(): boolean {
 }
 
 // Client-side automatic fetch wrapper:
-// - If any API request takes longer than 5 seconds or encounters cold-start 502/503/504,
+// - If any API request takes longer than 6 seconds or encounters cold-start 502/503/504,
 //   notifies wakeup listener ("Connecting to OptiBuild Engine...")
-// - Retries automatically up to 3 times before displaying an error
+// - Background health checks never trigger the banner
+// - Retries automatically up to 2 times before completing
 interface OptiBuildWindow extends Window {
   __optibuild_fetch_installed__?: boolean;
 }
@@ -60,7 +61,15 @@ if (typeof window !== "undefined" && !(window as OptiBuildWindow).__optibuild_fe
   const originalFetch = window.fetch;
 
   window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const maxRetries = 3;
+    const inputStr = typeof input === "string" ? input : (input instanceof URL ? input.toString() : (input as Request).url || "");
+    const isHealthCheck = inputStr.includes("/health");
+
+    // Don't intercept or retry health checks with cold start banner
+    if (isHealthCheck) {
+      return originalFetch(input, init);
+    }
+
+    const maxRetries = 2;
     let attempt = 0;
 
     while (attempt <= maxRetries) {
@@ -89,7 +98,7 @@ if (typeof window !== "undefined" && !(window as OptiBuildWindow).__optibuild_fe
 
       timeoutId = setTimeout(() => {
         triggerWakeup();
-      }, 5000);
+      }, 6000);
 
       try {
         const response = await originalFetch(input, init);
@@ -101,7 +110,7 @@ if (typeof window !== "undefined" && !(window as OptiBuildWindow).__optibuild_fe
         ) {
           triggerWakeup();
           attempt++;
-          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
           clearWakeup();
           continue;
         }
@@ -112,7 +121,7 @@ if (typeof window !== "undefined" && !(window as OptiBuildWindow).__optibuild_fe
         if (attempt < maxRetries) {
           triggerWakeup();
           attempt++;
-          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
           clearWakeup();
         } else {
           clearWakeup();
