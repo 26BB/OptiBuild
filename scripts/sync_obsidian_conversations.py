@@ -30,7 +30,7 @@ SESSIONS_DIR = os.path.join(VAULT_DIR, "sessions")
 INDEX_PATH = os.path.join(VAULT_DIR, "00_Conversations_Index.md")
 CONSOLIDATED_PATH = os.path.join(VAULT_DIR, "All_Conversations.md")
 
-CURRENT_CID = "552e83e6-dd43-4ff0-9538-e9f7735455a3"
+CURRENT_CID = os.getenv("ANTIGRAVITY_CONVERSATION_ID", "b3ee87a4-b061-4160-826c-72750a335fbc")
 
 
 def clean_user_prompt(text: str) -> str:
