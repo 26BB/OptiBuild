@@ -251,73 +251,77 @@ const FLAGSHIP_PROJECT = {
   ],
 };
 
-function handleEdgeFallback(req: NextRequest, pathParts: string[]) {
+async function handleEdgeFallback(req: NextRequest, pathParts: string[], bodyText: string): Promise<NextResponse> {
   const pathStr = pathParts.join("/");
   const method = req.method;
 
+  let bodyJson: Record<string, any> = {};
+  if (bodyText) {
+    try {
+      bodyJson = JSON.parse(bodyText);
+    } catch {
+      bodyJson = {};
+    }
+  }
+
   // 1. POST /api/v1/auth/login
   if (pathStr === "v1/auth/login" && method === "POST") {
-    return req.json().then((body) => {
-      const email = (body.email || "").toLowerCase().trim();
-      const pass = body.password || "";
-      const matched = DEMO_USERS[email];
+    const email = (bodyJson.email || "").toLowerCase().trim();
+    const pass = bodyJson.password || "";
+    const matched = DEMO_USERS[email];
 
-      // Accept matching demo credentials or any valid email & pass >= 6
-      const user = matched || {
-        email: email || "pm@optibuild.io",
-        pass: pass,
-        role: "project_manager",
-        name: email.split("@")[0] || "Authorized Engineer",
-      };
+    const user = matched || {
+      email: email || "pm@optibuild.io",
+      pass: pass,
+      role: "project_manager",
+      name: email.split("@")[0] || "Authorized Engineer",
+    };
 
-      const token = `optibuild_jwt_edge_${Buffer.from(JSON.stringify({ sub: user.email, role: user.role, name: user.name })).toString("base64")}`;
-      const res = NextResponse.json({
-        access_token: token,
-        token_type: "bearer",
-        user: {
-          id: `usr-${user.role}`,
-          email: user.email,
-          full_name: user.name,
-          role: user.role,
-          is_active: true,
-        },
-      });
-
-      res.cookies.set("optibuild_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
-      res.cookies.set("auth_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
-      res.cookies.set("optibuild_role", user.role, { path: "/", maxAge: 86400, sameSite: "lax" });
-      return res;
+    const token = `optibuild_jwt_${Buffer.from(JSON.stringify({ sub: user.email, role: user.role, name: user.name, exp: Date.now() + 86400000 })).toString("base64")}`;
+    const res = NextResponse.json({
+      access_token: token,
+      token_type: "bearer",
+      user: {
+        id: `usr-${user.role}`,
+        email: user.email,
+        full_name: user.name,
+        role: user.role,
+        is_active: true,
+      },
     });
+
+    res.cookies.set("optibuild_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
+    res.cookies.set("auth_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
+    res.cookies.set("optibuild_role", user.role, { path: "/", maxAge: 86400, sameSite: "lax" });
+    return res;
   }
 
   // 2. POST /api/v1/auth/register
   if (pathStr === "v1/auth/register" && method === "POST") {
-    return req.json().then((body) => {
-      const email = (body.email || "engineer@optibuild.io").toLowerCase().trim();
-      const role = (body.role || "project_manager").toLowerCase().trim();
-      const name = body.full_name || "Registered Engineer";
+    const email = (bodyJson.email || "engineer@optibuild.io").toLowerCase().trim();
+    const role = (bodyJson.role || "project_manager").toLowerCase().trim();
+    const name = bodyJson.full_name || "Registered Engineer";
 
-      const token = `optibuild_jwt_edge_${Buffer.from(JSON.stringify({ sub: email, role, name })).toString("base64")}`;
-      const res = NextResponse.json(
-        {
-          access_token: token,
-          token_type: "bearer",
-          user: {
-            id: `usr-${Date.now()}`,
-            email,
-            full_name: name,
-            role,
-            is_active: true,
-          },
+    const token = `optibuild_jwt_${Buffer.from(JSON.stringify({ sub: email, role, name, exp: Date.now() + 86400000 })).toString("base64")}`;
+    const res = NextResponse.json(
+      {
+        access_token: token,
+        token_type: "bearer",
+        user: {
+          id: `usr-${Date.now()}`,
+          email,
+          full_name: name,
+          role,
+          is_active: true,
         },
-        { status: 201 }
-      );
+      },
+      { status: 201 }
+    );
 
-      res.cookies.set("optibuild_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
-      res.cookies.set("auth_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
-      res.cookies.set("optibuild_role", role, { path: "/", maxAge: 86400, sameSite: "lax" });
-      return res;
-    });
+    res.cookies.set("optibuild_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
+    res.cookies.set("auth_token", token, { path: "/", maxAge: 86400, sameSite: "lax" });
+    res.cookies.set("optibuild_role", role, { path: "/", maxAge: 86400, sameSite: "lax" });
+    return res;
   }
 
   // 3. POST /api/v1/auth/logout
@@ -414,8 +418,13 @@ function handleEdgeFallback(req: NextRequest, pathParts: string[]) {
     });
   }
 
-  // Fallback default response
-  return NextResponse.json({ status: "healthy", endpoint: pathStr, mode: "edge" });
+  // 10. Health
+  if (pathStr === "health" || pathStr === "v1/health") {
+    return NextResponse.json({ status: "healthy", mode: "edge" });
+  }
+
+  // Default Edge response
+  return NextResponse.json({ status: "ok", endpoint: pathStr, mode: "edge" });
 }
 
 async function handleProxy(
@@ -425,9 +434,12 @@ async function handleProxy(
   const { path } = await params;
   const backendBase = getBackendBaseUrl();
 
+  const isBodyAllowed = req.method !== "GET" && req.method !== "HEAD";
+  const bodyText = isBodyAllowed ? await req.text() : "";
+
   // If no external cloud backend is configured, directly use high-performance Edge handler
   if (!backendBase) {
-    return handleEdgeFallback(req, path);
+    return handleEdgeFallback(req, path, bodyText);
   }
 
   const searchParams = req.nextUrl.search;
@@ -439,25 +451,20 @@ async function handleProxy(
   }
 
   try {
-    const isBodyAllowed = req.method !== "GET" && req.method !== "HEAD";
-    const body = isBodyAllowed ? await req.arrayBuffer() : undefined;
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2500);
 
     const backendRes = await fetch(targetUrl, {
       method: req.method,
       headers,
-      body,
-      // @ts-expect-error duplex is required by Node fetch for streaming payloads
-      duplex: "half",
+      body: isBodyAllowed ? bodyText : undefined,
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
     if (backendRes.status >= 500) {
       // If external backend responds with 5xx (cold start), fall back gracefully
-      return handleEdgeFallback(req, path);
+      return handleEdgeFallback(req, path, bodyText);
     }
 
     const resHeaders = new Headers(backendRes.headers);
@@ -470,8 +477,8 @@ async function handleProxy(
       headers: resHeaders,
     });
   } catch {
-    // If backend times out or is unreachable, handle via Edge fallback rather than failing with 502
-    return handleEdgeFallback(req, path);
+    // If backend times out or is unreachable, handle via Edge fallback
+    return handleEdgeFallback(req, path, bodyText);
   }
 }
 

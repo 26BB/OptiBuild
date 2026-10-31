@@ -4,10 +4,11 @@ import type { NextRequest } from "next/server"
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow static files, image optimizations, Next internals, favicon, and /api
+  // Allow static files, image optimizations, Next internals, favicon, /api, and /health
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/health") ||
     pathname.startsWith("/favicon.ico") ||
     pathname.includes(".")
   ) {
@@ -45,7 +46,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - api (API endpoints)
+     * - health (health check)
      */
-    "/((?!_next/static|_next/image|favicon.ico|api).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api|health).*)",
   ],
 }
